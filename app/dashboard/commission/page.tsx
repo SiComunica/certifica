@@ -1,21 +1,6 @@
-"use client"
-
-import { useState, useEffect } from 'react'
-import { Metadata } from "next"
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { RequestsQueue } from "@/components/dashboard/commission/RequestsQueue"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { redirect } from "next/navigation"
-
-export const metadata: Metadata = {
-  title: "Dashboard Commissione",
-  description: "Gestione delle richieste di certificazione",
-}
+import { RequestsQueue } from '@/components/dashboard/commission/RequestsQueue'
 
 export default function CommissionPage() {
-  const [loading, setLoading] = useState(true)
-
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">
@@ -28,13 +13,7 @@ export default function CommissionPage() {
             Coda Richieste
           </h2>
           
-          {loading ? (
-            <div className="text-center py-8">
-              Caricamento...
-            </div>
-          ) : (
-            <RequestsQueue />
-          )}
+          <RequestsQueue />
         </section>
 
         <section>
