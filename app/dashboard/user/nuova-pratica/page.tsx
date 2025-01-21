@@ -10,9 +10,17 @@ import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
 import { Steps } from "@/components/ui/steps"
 
+interface FormData {
+  // definisci qui tutti i campi del form
+  step1?: any;
+  step2?: any;
+  step3?: any;
+  // ... altri campi necessari
+}
+
 export default function NewPractice() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<any>({})
+  const [formData, setFormData] = useState<FormData>({})
   const supabase = createClientComponentClient()
 
   const steps = [
@@ -73,7 +81,7 @@ export default function NewPractice() {
 
         console.log('Pratica creata con successo:', data)
       } else {
-        setFormData(prev => ({
+        setFormData((prev: FormData) => ({
           ...prev,
           ...stepData
         }))
