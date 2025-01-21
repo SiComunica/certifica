@@ -32,6 +32,7 @@
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@tanstack/react-table": "^8.20.6",
     "@types/nodemailer": "^6.4.17",
     "@uploadthing/react": "^7.1.5",
     "bcryptjs": "^2.4.3",
