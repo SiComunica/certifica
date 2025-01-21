@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from 'react'
 import {
   Table,
@@ -13,69 +15,43 @@ import { CheckIcon, Cross1Icon, EyeOpenIcon, Cross2Icon } from "@radix-ui/react-
 
 interface Request {
   id: string
-  request_number: string
-  company_name: string
-  employee_name: string
+  title: string
   status: string
-  created_at: string
-  is_urgent: boolean
+  date: string
 }
 
-export function RequestsQueue({ requests }: { requests: Request[] }) {
+export function RequestsQueue() {
+  // Dati di esempio
+  const requests: Request[] = [
+    {
+      id: '1',
+      title: 'Richiesta #001',
+      status: 'pending',
+      date: '2024-01-21'
+    },
+    {
+      id: '2',
+      title: 'Richiesta #002',
+      status: 'in-progress',
+      date: '2024-01-21'
+    }
+  ]
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Numero Pratica</TableHead>
-            <TableHead>Azienda</TableHead>
-            <TableHead>Dipendente</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Priorità</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead>Azioni</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requests.map((request) => (
-            <TableRow key={request.id}>
-              <TableCell>{request.request_number}</TableCell>
-              <TableCell>{request.company_name}</TableCell>
-              <TableCell>{request.employee_name}</TableCell>
-              <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
-              <TableCell>
-                {request.is_urgent ? (
-                  <Badge variant="destructive">Urgente</Badge>
-                ) : (
-                  <Badge variant="default">Normale</Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                <Badge variant={
-                  request.status === 'pending' ? 'default' :
-                  request.status === 'approved' ? 'success' :
-                  'destructive'
-                }>
-                  {request.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    <EyeOpenIcon className="h-4 w-4" />
-                  </Button>
-                  <Button variant="default" size="sm">
-                    <CheckIcon className="h-4 w-4" />
-                  </Button>
-                  <Button variant="destructive" size="sm">
-                    <Cross1Icon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-4">
+      {requests.map((request) => (
+        <div 
+          key={request.id}
+          className="p-3 bg-gray-50 rounded border"
+        >
+          <h4 className="font-medium">{request.title}</h4>
+          <div className="text-sm text-gray-500">
+            <span>{request.status}</span>
+            <span className="mx-2">•</span>
+            <span>{request.date}</span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 } 
