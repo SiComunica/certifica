@@ -15,30 +15,12 @@ export default function AdminLayout({ children }: LayoutProps) {
   
   return (
     <div className="flex h-screen">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold">Dashboard Amministrativa</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <NotificationCenter />
-              <UserNav />
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-          {children}
-          
-          {currentUser && (
-            <PracticeHistory 
-              userId={currentUser.id}
-              key={currentUser.id}
-            />
-          )}
-        </main>
+      <div className="w-64 bg-gray-800 text-white p-4">
+        <h2 className="text-xl font-bold">Admin Dashboard</h2>
       </div>
+      <main className="flex-1 p-6">
+        {children}
+      </main>
     </div>
   )
 } 

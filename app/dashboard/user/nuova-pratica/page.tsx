@@ -5,22 +5,14 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
-import Step2CompanyInfo from "@/app/dashboard/user/nuova-pratica/steps/Step2CompanyInfo"
+import Step2CompanyInfo from "./steps/Step2CompanyInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
-import { Steps } from "@/components/ui/Steps"
-
-interface FormData {
-  practiceId?: string
-  employeeName?: string
-  fiscalCode?: string
-  contractType?: string
-  [key: string]: any
-}
+import { Steps } from "@/components/ui/steps"
 
 export default function NewPractice() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<FormData>({})
+  const [formData, setFormData] = useState<any>({})
   const supabase = createClientComponentClient()
 
   const steps = [
@@ -51,8 +43,7 @@ export default function NewPractice() {
           return
         }
 
-        const now = new Date().toISOString()
-
+        // Crea la pratica con i dati essenziali
         const { data, error } = await supabase
           .from('practices')
           .insert({
@@ -62,9 +53,8 @@ export default function NewPractice() {
             contract_type: stepData.contractType,
             status: 'draft',
             practice_number: `P${Date.now()}`,
-            created_at: now,
-            updated_at: now,
-            submission_date: now,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             documents: [],
             notes: ''
           })
@@ -76,26 +66,24 @@ export default function NewPractice() {
           throw new Error(`Errore durante il salvataggio: ${error.message}`)
         }
 
-        setFormData(prevData => ({
-          ...prevData,
+        setFormData({
           ...stepData,
           practiceId: data.id
-        }))
+        })
 
         console.log('Pratica creata con successo:', data)
       } else {
-        setFormData(prevData => ({
-          ...prevData,
+        setFormData(prev => ({
+          ...prev,
           ...stepData
         }))
       }
 
       setCurrentStep(prev => prev + 1)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Errore completo:', error)
-      const errorMessage = error instanceof Error ? error.message : "Errore durante il salvataggio dei dati"
-      toast.error(errorMessage)
+      toast.error(error.message || "Errore durante il salvataggio dei dati")
     }
   }
 
@@ -141,4 +129,4 @@ export default function NewPractice() {
       </Card>
     </div>
   )
-} 
+}
