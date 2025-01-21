@@ -1,4 +1,6 @@
-import * as React from "react"
+"use client"
+
+import { useState, useEffect } from 'react'
 import { Metadata } from "next"
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
@@ -11,78 +13,49 @@ export const metadata: Metadata = {
   description: "Gestione delle richieste di certificazione",
 }
 
-export default async function CommissionDashboard() {
-  const supabase = createServerComponentClient({ cookies })
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session || session.user.user_metadata.role !== 'commission') {
-    redirect('/auth/login')
-  }
-
-  // Recupera le pratiche pendenti
-  const { data: requests } = await supabase
-    .from('certification_requests')
-    .select(`
-      *,
-      companies (company_name),
-      employees (first_name, last_name)
-    `)
-    .order('is_urgent', { ascending: false })
-    .order('created_at', { ascending: true })
-
-  // Statistiche
-  const pendingCount = requests?.filter(r => r.status === 'pending').length || 0
-  const urgentCount = requests?.filter(r => r.is_urgent && r.status === 'pending').length || 0
-  const todayCount = requests?.filter(r => {
-    const today = new Date().toISOString().split('T')[0]
-    return r.created_at.startsWith(today)
-  }).length || 0
+export default function CommissionPage() {
+  const [loading, setLoading] = useState(true)
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-8">Dashboard Commissione</h1>
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8">
+        Dashboard Commissione
+      </h1>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pratiche in Attesa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingCount}</div>
-          </CardContent>
-        </Card>
+      <div className="space-y-8">
+        <section>
+          <h2 className="text-2xl font-bold mb-4">
+            Coda Richieste
+          </h2>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              Caricamento...
+            </div>
+          ) : (
+            <RequestsQueue />
+          )}
+        </section>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pratiche Urgenti</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{urgentCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nuove Oggi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{todayCount}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Coda Richieste</h2>
-        <RequestsQueue 
-          requests={requests?.map(r => ({
-            ...r,
-            company_name: r.companies.company_name,
-            employee_name: `${r.employees.first_name} ${r.employees.last_name}`
-          })) || []} 
-        />
+        <section>
+          <h2 className="text-2xl font-bold mb-4">
+            Statistiche
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="font-medium text-gray-500">Richieste Totali</h3>
+              <p className="text-2xl font-bold">0</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="font-medium text-gray-500">In Attesa</h3>
+              <p className="text-2xl font-bold">0</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="font-medium text-gray-500">Completate</h3>
+              <p className="text-2xl font-bold">0</p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )
