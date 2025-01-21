@@ -11,16 +11,20 @@ import Step4Payment from "./steps/Step4Payment"
 import { Steps } from "@/components/ui/steps"
 
 interface FormData {
-  // definisci qui tutti i campi del form
-  step1?: any;
-  step2?: any;
-  step3?: any;
-  // ... altri campi necessari
+  nome?: string;
+  cognome?: string;
+  email?: string;
+  telefono?: string;
+  tipoPratica?: string;
+  documenti?: string[];
+  note?: string;
+  [key: string]: any;
 }
 
 export default function NewPractice() {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({})
+  const [loading, setLoading] = useState(false)
   const supabase = createClientComponentClient()
 
   const steps = [
@@ -44,6 +48,7 @@ export default function NewPractice() {
 
   const handleSubmit = async (stepData: any) => {
     try {
+      setLoading(true)
       if (currentStep === 1) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
@@ -81,18 +86,26 @@ export default function NewPractice() {
 
         console.log('Pratica creata con successo:', data)
       } else {
-        setFormData((prev: FormData) => ({
-          ...prev,
+        setFormData((prevState: FormData) => ({
+          ...prevState,
           ...stepData
         }))
       }
 
       setCurrentStep(prev => prev + 1)
-
     } catch (error: any) {
       console.error('Errore completo:', error)
       toast.error(error.message || "Errore durante il salvataggio dei dati")
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const updateFormData = (stepData: any) => {
+    setFormData((prevState: FormData) => ({
+      ...prevState,
+      ...stepData
+    }))
   }
 
   return (
