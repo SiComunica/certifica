@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { Loader2, Search, CreditCard, CheckCircle, XCircle, Download, FileText } from "lucide-react"
@@ -37,7 +37,7 @@ interface Organization {
   vat_number: string
 }
 
-export default function StoricoPagamentiPage() {
+function PaymentHistoryContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [payments, setPayments] = useState<Payment[]>([])
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([])
@@ -289,5 +289,13 @@ export default function StoricoPagamentiPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function PaymentHistory() {
+  return (
+    <Suspense fallback={<div>Caricamento storico pagamenti...</div>}>
+      <PaymentHistoryContent />
+    </Suspense>
   )
 } 
