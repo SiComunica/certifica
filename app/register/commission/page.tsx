@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
-export default function CommissionRegisterPage() {
+function CommissionRegistrationContent() {
   const [loading, setLoading] = useState(true)
   const [inviteValid, setInviteValid] = useState(false)
   const [email, setEmail] = useState('')
@@ -187,5 +187,13 @@ export default function CommissionRegisterPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function CommissionRegistration() {
+  return (
+    <Suspense fallback={<div>Caricamento registrazione commissione...</div>}>
+      <CommissionRegistrationContent />
+    </Suspense>
   )
 } 
