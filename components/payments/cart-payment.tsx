@@ -28,7 +28,7 @@ export function CartPayment() {
 
   const handlePayment = async () => {
     if (items.length === 0) {
-      showToast("Carrello vuoto", "destructive")
+      showToast("Carrello vuoto", "error")
       return
     }
 
@@ -43,7 +43,7 @@ export function CartPayment() {
       // Reindirizza al checkout di PagoPA
       window.location.href = payment.paymentUrl
     } catch (error) {
-      showToast("Errore durante il pagamento", "destructive")
+      showToast("Errore durante il pagamento", "error")
     } finally {
       setLoading(false)
     }
