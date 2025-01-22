@@ -20,11 +20,7 @@ export function CertificationRequestForm() {
     // Per ora solo un log dei dati
     console.log(data)
     
-    // Usiamo il nuovo formato del toast
-    showToast(
-      "La tua richiesta di certificazione è stata inviata con successo",
-      "success"
-    )
+    showToast("La tua richiesta di certificazione è stata inviata con successo", "success")
     
     // Reset del form
     reset()
