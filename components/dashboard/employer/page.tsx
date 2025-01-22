@@ -1,67 +1,50 @@
-import * as React from "react"
-import { Metadata } from "next"
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { StatisticsCards } from "@/components/dashboard/employer/StatisticsCards"
-import { RequestsTable } from "@/components/dashboard/commission/RequestsTable"
-import { getCompanyData, getCertificationRequests, getStatistics } from "@/lib/api"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { Plus as PlusIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client"
 
-export const metadata: Metadata = {
-  title: "Dashboard Datore di Lavoro",
-  description: "Gestione delle pratiche di certificazione",
+import Link from 'next/link'
+import { PlusIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+interface Company {
+  nome_azienda: string
 }
 
-export default async function EmployerDashboard() {
-  const supabase = createServerComponentClient({ cookies })
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    redirect('/auth/login')
+export default function EmployerDashboard() {
+  // Dati di esempio
+  const company: Company = {
+    nome_azienda: "Azienda Example"
   }
 
-  try {
-    const company = await getCompanyData(session.user.id)
-    const requests = await getCertificationRequests(company.id)
-    const stats = await getStatistics(company.id)
+  return (
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">
+          Dashboard {company.nome_azienda}
+        </h1>
+        
+        <Link href="/dashboard/employer/new-request">
+          <Button className="flex items-center">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Nuova Pratica
+          </Button>
+        </Link>
+      </div>
 
-    return (
-      <div className="container mx-auto py-10">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Dashboard {company.company_name}</h1>
-          <div className="space-x-2">
-            <Button asChild>
-              <Link href="/dashboard/employer/new-request">
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Nuova Pratica
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/employer/archivio">
-                Archivio
-              </Link>
-            </Button>
-          </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="font-semibold text-lg mb-2">Pratiche Totali</h3>
+          <p className="text-3xl font-bold">0</p>
         </div>
 
-        <div className="space-y-8">
-          <StatisticsCards {...stats} />
-          
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Pratiche Recenti</h2>
-            <RequestsTable requests={requests} />
-          </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="font-semibold text-lg mb-2">In Attesa</h3>
+          <p className="text-3xl font-bold">0</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="font-semibold text-lg mb-2">Completate</h3>
+          <p className="text-3xl font-bold">0</p>
         </div>
       </div>
-    )
-  } catch (error) {
-    console.error('Error:', error)
-    return <div>Si è verificato un errore nel caricamento dei dati.</div>
-  }
+    </div>
+  )
 } 
