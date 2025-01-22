@@ -9,7 +9,12 @@ interface Payment {
   amount: number
 }
 
-export function PaymentStatus({ paymentId }: { paymentId: string }) {
+interface PaymentStatusProps {
+  paymentId: string
+  onComplete?: () => void
+}
+
+export function PaymentStatus({ paymentId, onComplete }: PaymentStatusProps) {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
   const { showToast } = useToast()
@@ -27,6 +32,7 @@ export function PaymentStatus({ paymentId }: { paymentId: string }) {
         
         if (mockPayment.status === 'completed') {
           showToast("Pagamento completato con successo!", "success")
+          onComplete?.()
         } else if (mockPayment.status === 'failed') {
           showToast("Pagamento fallito", "error")
         }
@@ -38,7 +44,7 @@ export function PaymentStatus({ paymentId }: { paymentId: string }) {
     }
 
     checkStatus()
-  }, [paymentId])
+  }, [paymentId, onComplete])
 
   if (loading) {
     return <div>Controllo stato pagamento...</div>
