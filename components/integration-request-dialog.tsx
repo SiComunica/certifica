@@ -1,68 +1,75 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { emailService } from '@/lib/email'
-import { contractsApi } from '@/lib/supabase/contracts'
 
 interface IntegrationRequestDialogProps {
-  contractId: string
+  isOpen: boolean
+  onClose: () => void
   userEmail: string
+  contractId: string
   onRequestSent: () => void
 }
 
 export function IntegrationRequestDialog({
-  contractId,
+  isOpen,
+  onClose,
   userEmail,
+  contractId,
   onRequestSent
 }: IntegrationRequestDialogProps) {
   const [message, setMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
+    setLoading(true)
     try {
-      setIsLoading(true)
-      
-      // Aggiorna lo stato del contratto
-      await contractsApi.update(contractId, {
-        status: 'integration_required',
-        notes: message
-      })
-
-      // Invia email all'utente
-      await emailService.sendIntegrationRequest(userEmail, contractId, message)
+      // Usa il metodo generico sendEmail invece di sendIntegrationRequest
+      await emailService.sendEmail(
+        userEmail,
+        'Richiesta Integrazione Documenti',
+        `Richiesta integrazione per contratto ${contractId}:\n\n${message}`
+      )
       
       onRequestSent()
+      onClose()
     } catch (error) {
-      console.error('Errore nell\'invio della richiesta:', error)
+      console.error('Errore invio richiesta:', error)
+      alert('Errore nell\'invio della richiesta')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline">Richiedi Integrazioni</Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Richiedi Integrazioni</DialogTitle>
+          <DialogTitle>Richiedi Integrazione</DialogTitle>
         </DialogHeader>
+
         <div className="space-y-4">
           <Textarea
-            placeholder="Descrivi i documenti o le informazioni necessarie..."
+            placeholder="Messaggio per l'utente..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            className="min-h-[100px]"
           />
-          <Button 
-            onClick={handleSubmit}
-            disabled={isLoading || !message}
-          >
-            {isLoading ? 'Invio in corso...' : 'Invia Richiesta'}
-          </Button>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onClose}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              disabled={loading || !message.trim()}
+            >
+              {loading ? 'Invio...' : 'Invia Richiesta'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
