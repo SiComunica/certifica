@@ -2,35 +2,20 @@
 
 import { useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useToast } from '@/components/ui/use-toast'
 import { useRouter } from 'next/navigation'
-
-interface RegistrationData {
-  email: string
-  password: string
-  companyName: string
-  vatNumber: string
-  fiscalCode: string
-  city: string
-  address: string
-}
+import { useToast } from "@/components/ui/use-toast"
 
 export function EmployerRegistration() {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<RegistrationData>({
+  const [formData, setFormData] = useState({
     email: '',
     password: '',
     companyName: '',
-    vatNumber: '',
-    fiscalCode: '',
-    city: '',
-    address: ''
+    vatNumber: ''
   })
   
   const supabase = createClientComponentClient()
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,101 +23,108 @@ export function EmployerRegistration() {
     setLoading(true)
 
     try {
-      // 1. Registra l'utente
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            user_type: 'employer'
-          }
+            company_name: formData.companyName,
+            vat_number: formData.vatNumber,
+            role: 'employer'
+          },
+          emailRedirectTo: `${location.origin}/auth/callback`
         }
       })
 
-      if (authError) throw authError
-
-      // 2. Crea il profilo del datore di lavoro
-      const { error: profileError } = await supabase
-        .from('employer_profiles')
-        .insert({
-          id: authData.user!.id,
-          company_name: formData.companyName,
-          vat_number: formData.vatNumber,
-          fiscal_code: formData.fiscalCode,
-          city: formData.city,
-          address: formData.address
-        })
-
-      if (profileError) throw profileError
-
-      toast({
-        title: "Registrazione completata",
-        description: "Controlla la tua email per verificare l'account.",
-      })
-
-      router.push('/auth/verify')
+      if (error) {
+        showToast(error.message, "error")
+      } else {
+        showToast("Registrazione completata! Controlla la tua email.", "success")
+        router.push('/auth/verify')
+      }
     } catch (error) {
-      toast({
-        title: "Errore durante la registrazione",
-        description: (error as Error).message,
-        variant: "destructive"
-      })
+      showToast("Errore durante la registrazione", "error")
     } finally {
       setLoading(false)
     }
   }
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Input
-          type="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-          required
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-          required
-        />
-        <Input
-          placeholder="Nome Azienda"
-          value={formData.companyName}
-          onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-          required
-        />
-        <Input
-          placeholder="Partita IVA"
-          value={formData.vatNumber}
-          onChange={(e) => setFormData(prev => ({ ...prev, vatNumber: e.target.value }))}
-          required
-        />
-        <Input
-          placeholder="Codice Fiscale"
-          value={formData.fiscalCode}
-          onChange={(e) => setFormData(prev => ({ ...prev, fiscalCode: e.target.value }))}
-          required
-        />
-        <Input
-          placeholder="Città"
-          value={formData.city}
-          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-          required
-        />
-        <Input
-          placeholder="Indirizzo"
-          value={formData.address}
-          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Registrazione in corso...' : 'Registrati'}
-      </Button>
-    </form>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow">
+      <h2 className="text-2xl font-bold mb-6">
+        Registrazione Azienda
+      </h2>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Nome Azienda
+          </label>
+          <input
+            name="companyName"
+            value={formData.companyName}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Partita IVA
+          </label>
+          <input
+            name="vatNumber"
+            value={formData.vatNumber}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Registrazione...' : 'Registrati'}
+        </button>
+      </form>
+    </div>
   )
 } 
