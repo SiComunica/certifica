@@ -2,28 +2,16 @@
 
 import { useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useToast } from '@/components/ui/use-toast'
 import { useRouter } from 'next/navigation'
-import { invitesApi } from '@/lib/supabase/invites'
+import { useToast } from "@/components/ui/use-toast"
 
-interface RegistrationData {
-  email: string
-  password: string
-  token: string
-}
-
-export function CommissionRegistration({ token }: { token: string }) {
+export function CommissionRegistration() {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<RegistrationData>({
-    email: '',
-    password: '',
-    token
-  })
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   
   const supabase = createClientComponentClient()
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,75 +19,68 @@ export function CommissionRegistration({ token }: { token: string }) {
     setLoading(true)
 
     try {
-      // 1. Verifica l'invito
-      const invite = await invitesApi.verifyInvite(formData.token)
-
-      // 2. Registra l'utente
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          data: {
-            user_type: 'commission_member'
-          }
+          emailRedirectTo: `${location.origin}/auth/callback`
         }
       })
 
-      if (authError) throw authError
-
-      // 3. Crea il profilo del membro della commissione
-      const { error: profileError } = await supabase
-        .from('commission_members')
-        .insert({
-          id: authData.user!.id
-        })
-
-      if (profileError) throw profileError
-
-      // 4. Segna l'invito come accettato
-      await supabase
-        .from('commission_invites')
-        .update({ accepted: true })
-        .eq('token', formData.token)
-
-      toast({
-        title: "Registrazione completata",
-        description: "Controlla la tua email per verificare l'account.",
-      })
-
-      router.push('/auth/verify')
+      if (error) {
+        showToast(error.message, "error")
+      } else {
+        showToast("Registrazione completata! Controlla la tua email.", "success")
+        router.push('/auth/verify')
+      }
     } catch (error) {
-      toast({
-        title: "Errore durante la registrazione",
-        description: (error as Error).message,
-        variant: "destructive"
-      })
+      showToast("Errore durante la registrazione", "error")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Input
-          type="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-          required
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Registrazione in corso...' : 'Completa Registrazione'}
-      </Button>
-    </form>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow">
+      <h2 className="text-2xl font-bold mb-6">
+        Registrazione Commissione
+      </h2>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Registrazione...' : 'Registrati'}
+        </button>
+      </form>
+    </div>
   )
 } 
