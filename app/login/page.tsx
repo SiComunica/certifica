@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, FormProvider } from "react-hook-form"
+import { useForm, FormProvider, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { supabase } from "@/lib/supabase"
@@ -31,7 +31,11 @@ const loginSchema = z.object({
   remember: z.boolean().default(false),
 })
 
-type LoginFormData = z.infer<typeof loginSchema>
+interface LoginFormData {
+  email: string
+  password: string
+  remember: boolean
+}
 
 function LoginContent() {
   const [isLoading, setIsLoading] = useState(false)
@@ -39,12 +43,11 @@ function LoginContent() {
   const supabase = createClientComponentClient()
 
   const methods = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
-      remember: false,
-    },
+      remember: false
+    }
   })
 
   async function onSubmit(data: LoginFormData) {
@@ -141,34 +144,32 @@ function LoginContent() {
                     )}
                   />
 
-                  <div className="flex items-center justify-between">
-                    <FormField
-                      control={methods.control}
+                  <div className="flex items-center space-x-2">
+                    <Controller
                       name="remember"
+                      control={methods.control}
                       render={({ field }) => (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="remember"
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                          <label
-                            htmlFor="remember"
-                            className="text-sm text-gray-600"
-                          >
-                            Memorizza credenziali
-                          </label>
-                        </div>
+                        <Checkbox
+                          id="remember"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       )}
                     />
-                    
-                    <Link 
-                      href="/auth/reset-password"
-                      className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                    <label
+                      htmlFor="remember"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      Reimposta password
-                    </Link>
+                      Ricordami
+                    </label>
                   </div>
+
+                  <Link 
+                    href="/auth/reset-password"
+                    className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                  >
+                    Reimposta password
+                  </Link>
 
                   {methods.formState.errors.root && (
                     <div className="text-sm text-red-500">
