@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -10,25 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Company {
-  id              Int                 @id @default(autoincrement())
-  company_name    String
-  email          String
-  conventions    CompanyConvention[]
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String
+  role          String     @default("USER")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
-model Convention {
-  id                  Int                 @id @default(autoincrement())
-  code                String
-  discount_percentage Float
-  companies          CompanyConvention[]
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
 }
-
-model CompanyConvention {
-  id               Int        @id @default(autoincrement())
-  company_id       Int
-  convention_id    Int
-  notification_sent Boolean   @default(false)
-  company          Company    @relation(fields: [company_id], references: [id])
-  convention       Convention @relation(fields: [convention_id], references: [id])
-} 

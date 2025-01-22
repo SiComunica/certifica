@@ -6,8 +6,9 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
+import { Suspense } from 'react'
 
-export default function PaymentCallback() {
+function PaymentCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClientComponentClient()
@@ -63,5 +64,13 @@ export default function PaymentCallback() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function PaymentCallback() {
+  return (
+    <Suspense fallback={<div>Caricamento...</div>}>
+      <PaymentCallbackContent />
+    </Suspense>
   )
 } 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { validatePassword } from '@/lib/utils/password-validation'
 
-export default function JoinCommission() {
+function JoinCommissionContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const router = useRouter()
@@ -221,5 +221,13 @@ export default function JoinCommission() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function JoinCommission() {
+  return (
+    <Suspense fallback={<div>Caricamento...</div>}>
+      <JoinCommissionContent />
+    </Suspense>
   )
 } 

@@ -1,5 +1,9 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
+import { Resend } from 'resend'
+
+// Usa la variabile d'ambiente per la chiave API
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function sendNotificationEmail(
   recipientEmail: string, 
@@ -46,4 +50,6 @@ export const emailService = {
     // Implementazione del servizio email
     console.log('Email service mock:', { to, subject, content })
   }
-} 
+}
+
+export { resend } 
