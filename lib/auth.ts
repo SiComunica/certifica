@@ -1,11 +1,12 @@
-import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { db } from "@/lib/db"
+import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { db } from "@/lib/db"
+import NextAuth from "next-auth"
 import bcrypt from "bcryptjs"
 
-export const { handlers: { GET, POST }, auth } = NextAuth({
-  adapter: PrismaAdapter(db),
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(db) as any,
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -40,7 +41,9 @@ export const { handlers: { GET, POST }, auth } = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          name: user.name
+          name: user.name,
+          role: user.role,
+          image: user.image || null
         }
       }
     })
@@ -50,4 +53,10 @@ export const { handlers: { GET, POST }, auth } = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-}) 
+  pages: {
+    signIn: "/auth/login",
+    error: "/auth/error"
+  }
+}
+
+export const { handlers: { GET, POST }, auth } = NextAuth(authOptions) 
