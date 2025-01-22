@@ -14,7 +14,7 @@ interface PaymentFormProps {
 
 export function PaymentForm({ amount, contractId, onSuccess }: PaymentFormProps) {
   const [loading, setLoading] = useState(false)
-  const { toast } = useToast()
+  const { showToast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,11 +33,7 @@ export function PaymentForm({ amount, contractId, onSuccess }: PaymentFormProps)
       window.location.href = payment.paymentUrl
 
     } catch (error) {
-      toast({
-        title: "Errore",
-        description: "Impossibile avviare il pagamento. Riprova più tardi.",
-        variant: "destructive"
-      })
+      showToast("Errore durante il pagamento", "error")
     } finally {
       setLoading(false)
     }
