@@ -1,5 +1,5 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { toast } from '@/components/ui/use-toast'
+import { useToast } from "@/components/ui/use-toast"
 
 export const notificationsApi = {
   subscribeToContractUpdates(contractId: string, callback: (payload: any) => void) {
@@ -43,11 +43,8 @@ export const notificationsApi = {
 
             const message = statusMessages[newData.status as keyof typeof statusMessages]
             if (message) {
-              toast({
-                title: 'Aggiornamento Stato',
-                description: message,
-                variant: newData.status === 'approved' ? 'default' : 'destructive'
-              })
+              const { showToast } = useToast()
+              showToast(message, newData.status === 'approved' ? 'success' : 'error')
             }
           }
         }
