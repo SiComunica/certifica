@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PdfTemplates } from '@/components/admin/pdf-templates'
 import { PriceRanges } from '@/components/admin/price-ranges'
 import { DiscountCodes } from '@/components/admin/discount-codes'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
+import { SessionProvider } from "next-auth/react"
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
@@ -45,5 +46,15 @@ export default function AdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function AdminDashboard() {
+  return (
+    <SessionProvider>
+      <Suspense fallback={<div>Caricamento dashboard admin...</div>}>
+        <AdminDashboardContent />
+      </Suspense>
+    </SessionProvider>
   )
 } 
