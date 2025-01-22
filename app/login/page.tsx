@@ -107,84 +107,86 @@ function LoginContent() {
               </TabsList>
 
               <TabsContent value="credentials">
-                <Form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={methods.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="email"
-                            placeholder="Inserisci la tua email" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={methods.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Inserisci la password" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex items-center space-x-2">
-                    <Controller
-                      name="remember"
+                <Form {...methods}>
+                  <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
                       control={methods.control}
+                      name="email"
                       render={({ field }) => (
-                        <Checkbox
-                          id="remember"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              placeholder="Inserisci la tua email" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
                     />
-                    <label
-                      htmlFor="remember"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Ricordami
-                    </label>
-                  </div>
 
-                  <Link 
-                    href="/auth/reset-password"
-                    className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
-                  >
-                    Reimposta password
-                  </Link>
+                    <FormField
+                      control={methods.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Inserisci la password" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {methods.formState.errors.root && (
-                    <div className="text-sm text-red-500">
-                      {methods.formState.errors.root.message}
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="remember"
+                        control={methods.control}
+                        render={({ field }) => (
+                          <Checkbox
+                            id="remember"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        )}
+                      />
+                      <label
+                        htmlFor="remember"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Ricordami
+                      </label>
                     </div>
-                  )}
 
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-[#007bff] hover:bg-blue-600 transition-colors"
-                    disabled={isLoading}
-                  >
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Invia
-                  </Button>
+                    <Link 
+                      href="/auth/reset-password"
+                      className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      Reimposta password
+                    </Link>
+
+                    {methods.formState.errors.root && (
+                      <div className="text-sm text-red-500">
+                        {methods.formState.errors.root.message}
+                      </div>
+                    )}
+
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-[#007bff] hover:bg-blue-600 transition-colors"
+                      disabled={isLoading}
+                    >
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Invia
+                    </Button>
+                  </form>
                 </Form>
               </TabsContent>
 
