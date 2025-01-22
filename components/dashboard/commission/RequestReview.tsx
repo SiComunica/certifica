@@ -8,33 +8,29 @@ import { supabase } from "@/lib/supabase"
 
 interface RequestReviewProps {
   requestId: string
-  onReviewComplete: () => void
+  onReviewComplete?: () => void
 }
 
 export function RequestReview({ requestId, onReviewComplete }: RequestReviewProps) {
-  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [notes, setNotes] = useState('')
 
   const handleReview = async (status: 'approved' | 'rejected') => {
+    setLoading(true)
     try {
-      setLoading(true)
+      // Simuliamo una chiamata API
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      const { error } = await supabase
-        .from('certification_requests')
-        .update({ 
-          status,
-          review_notes: notes,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', requestId)
-
-      if (error) throw error
-
-      toast.success(`Pratica ${status === 'approved' ? 'approvata' : 'respinta'} con successo`)
-      onReviewComplete()
+      console.log('Review submitted:', {
+        requestId,
+        status,
+        notes
+      })
+      
+      onReviewComplete?.()
     } catch (error) {
-      console.error('Error:', error)
-      toast.error('Errore durante la revisione')
+      console.error('Error submitting review:', error)
+      alert('Errore durante la revisione')
     } finally {
       setLoading(false)
     }
@@ -43,7 +39,7 @@ export function RequestReview({ requestId, onReviewComplete }: RequestReviewProp
   return (
     <div className="space-y-4">
       <Textarea
-        placeholder="Note di revisione..."
+        placeholder="Note (opzionali)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         className="min-h-[100px]"
@@ -51,12 +47,14 @@ export function RequestReview({ requestId, onReviewComplete }: RequestReviewProp
 
       <div className="flex space-x-4">
         <Button
-          variant="success"
+          variant="default"
           onClick={() => handleReview('approved')}
           disabled={loading}
+          className="bg-green-600 hover:bg-green-700"
         >
           Approva
         </Button>
+
         <Button
           variant="destructive"
           onClick={() => handleReview('rejected')}
