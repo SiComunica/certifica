@@ -53,14 +53,26 @@ const registerSchema = z.object({
   path: ["confermaPassword"], 
 })
 
+interface RegisterFormData {
+  ragioneSociale: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
 function RegisterContent() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const methods = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
+  const methods = useForm<RegisterFormData>({
+    defaultValues: {
+      ragioneSociale: "",
+      email: "",
+      password: "",
+      confirmPassword: ""
+    }
   })
 
-  async function onSubmit(data: z.infer<typeof registerSchema>) {
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
     // Logica submit
     setIsLoading(false)
