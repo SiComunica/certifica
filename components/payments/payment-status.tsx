@@ -1,47 +1,47 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Payment, paymentsApi } from '@/lib/supabase/payments'
-import { useToast } from '@/components/ui/use-toast'
+import { useState, useEffect } from 'react'
+import { useToast } from "@/components/ui/use-toast"
 
-interface PaymentStatusProps {
-  paymentId: string
-  onComplete?: () => void
+interface Payment {
+  id: string
+  status: 'pending' | 'completed' | 'failed'
+  amount: number
 }
 
-export function PaymentStatus({ paymentId, onComplete }: PaymentStatusProps) {
+export function PaymentStatus({ paymentId }: { paymentId: string }) {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
+  const { showToast } = useToast()
 
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const status = await paymentsApi.verifyStatus(paymentId)
-        setPayment(status)
-
-        if (status.status === 'completed' && onComplete) {
-          onComplete()
+        // Simuliamo il check dello stato
+        const mockPayment: Payment = {
+          id: paymentId,
+          status: 'completed',
+          amount: 99.99
+        }
+        setPayment(mockPayment)
+        
+        if (mockPayment.status === 'completed') {
+          showToast("Pagamento completato con successo!", "success")
+        } else if (mockPayment.status === 'failed') {
+          showToast("Pagamento fallito", "error")
         }
       } catch (error) {
-        toast({
-          title: "Errore",
-          description: "Impossibile verificare lo stato del pagamento",
-          variant: "destructive"
-        })
+        showToast("Errore nel controllo dello stato", "error")
       } finally {
         setLoading(false)
       }
     }
 
-    const interval = setInterval(checkStatus, 5000) // Verifica ogni 5 secondi
-    checkStatus() // Verifica immediata
-
-    return () => clearInterval(interval)
-  }, [paymentId, onComplete, toast])
+    checkStatus()
+  }, [paymentId])
 
   if (loading) {
-    return <div>Verifica del pagamento in corso...</div>
+    return <div>Controllo stato pagamento...</div>
   }
 
   if (!payment) {
@@ -49,13 +49,16 @@ export function PaymentStatus({ paymentId, onComplete }: PaymentStatusProps) {
   }
 
   return (
-    <div className="rounded-lg bg-muted p-4">
-      <p className="text-sm font-medium">Stato del pagamento</p>
-      <p className="text-lg font-bold">
-        {payment.status === 'completed' && 'Pagamento completato'}
-        {payment.status === 'pending' && 'Pagamento in elaborazione'}
-        {payment.status === 'failed' && 'Pagamento fallito'}
-      </p>
+    <div className="p-4 border rounded">
+      <h2 className="text-xl font-bold mb-4">
+        Stato Pagamento
+      </h2>
+      
+      <div className="space-y-2">
+        <p>ID: {payment.id}</p>
+        <p>Stato: {payment.status}</p>
+        <p>Importo: €{payment.amount.toFixed(2)}</p>
+      </div>
     </div>
   )
 } 
