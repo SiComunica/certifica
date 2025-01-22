@@ -1,128 +1,77 @@
-'use client'
+"use client"
 
-import * as React from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { supabase } from "@/lib/supabase"
-import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { useState } from 'react'
 
 interface Review {
   id: string
-  request_number: string
-  company_name: string
-  employee_name: string
+  requestNumber: string
+  companyName: string
+  employeeName: string
   status: string
-  review_notes: string
-  reviewed_at: string
-  reviewer: string
+  reviewNotes: string
+  reviewedAt: string
 }
 
 export function ReviewHistory() {
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const perPage = 10
-
-  const loadReviews = async (pageNumber: number) => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('certification_requests')
-        .select(`
-          id,
-          request_number,
-          status,
-          review_notes,
-          reviewed_at,
-          companies (company_name),
-          employees (first_name, last_name),
-          profiles (full_name)
-        `)
-        .not('reviewed_at', 'is', null)
-        .order('reviewed_at', { ascending: false })
-        .range((pageNumber - 1) * perPage, pageNumber * perPage - 1)
-
-      if (error) throw error
-
-      const formattedReviews = data.map(r => ({
-        id: r.id,
-        request_number: r.request_number,
-        company_name: r.companies.company_name,
-        employee_name: `${r.employees.first_name} ${r.employees.last_name}`,
-        status: r.status,
-        review_notes: r.review_notes,
-        reviewed_at: r.reviewed_at,
-        reviewer: r.profiles.full_name
-      }))
-
-      setReviews(prev => pageNumber === 1 ? formattedReviews : [...prev, ...formattedReviews])
-      setHasMore(data.length === perPage)
-    } catch (error) {
-      console.error('Error loading reviews:', error)
-    } finally {
-      setLoading(false)
+  // Dati di esempio
+  const [reviews] = useState<Review[]>([
+    {
+      id: '1',
+      requestNumber: 'REQ-001',
+      companyName: 'Azienda Example',
+      employeeName: 'Mario Rossi',
+      status: 'approved',
+      reviewNotes: 'Tutto in ordine',
+      reviewedAt: '2024-01-21'
+    },
+    {
+      id: '2',
+      requestNumber: 'REQ-002',
+      companyName: 'Azienda Test',
+      employeeName: 'Luigi Verdi',
+      status: 'rejected',
+      reviewNotes: 'Documentazione incompleta',
+      reviewedAt: '2024-01-21'
     }
-  }
+  ])
 
   return (
     <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data Revisione</TableHead>
-            <TableHead>Pratica</TableHead>
-            <TableHead>Azienda</TableHead>
-            <TableHead>Dipendente</TableHead>
-            <TableHead>Esito</TableHead>
-            <TableHead>Revisore</TableHead>
-            <TableHead>Note</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {reviews.map((review) => (
-            <TableRow key={review.id}>
-              <TableCell>{new Date(review.reviewed_at).toLocaleString()}</TableCell>
-              <TableCell>{review.request_number}</TableCell>
-              <TableCell>{review.company_name}</TableCell>
-              <TableCell>{review.employee_name}</TableCell>
-              <TableCell>
-                <Badge variant={
-                  review.status === 'approved' ? 'success' :
-                  review.status === 'rejected' ? 'destructive' :
-                  'default'
-                }>
-                  {review.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{review.reviewer}</TableCell>
-              <TableCell className="max-w-xs truncate">{review.review_notes}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {hasMore && (
-        <Button
-          onClick={() => {
-            setPage(p => p + 1)
-            loadReviews(page + 1)
-          }}
-          disabled={loading}
-          className="w-full"
-        >
-          {loading ? 'Caricamento...' : 'Carica altri'}
-        </Button>
-      )}
+      <h3 className="text-lg font-semibold">Storico Revisioni</h3>
+      
+      <div className="divide-y">
+        {reviews.map((review) => (
+          <div key={review.id} className="py-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="font-medium">
+                  {review.requestNumber} - {review.companyName}
+                </h4>
+                <p className="text-sm text-gray-500">
+                  {review.employeeName}
+                </p>
+              </div>
+              <span className={`px-2 py-1 rounded-full text-sm ${
+                review.status === 'approved' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {review.status === 'approved' ? 'Approvato' : 'Rifiutato'}
+              </span>
+            </div>
+            
+            {review.reviewNotes && (
+              <p className="mt-2 text-sm text-gray-600">
+                Note: {review.reviewNotes}
+              </p>
+            )}
+            
+            <p className="mt-1 text-xs text-gray-400">
+              Revisionato il: {review.reviewedAt}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 } 
