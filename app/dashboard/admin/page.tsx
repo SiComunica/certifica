@@ -10,10 +10,23 @@ import ConventionsManagement from "./components/ConventionsManagement"
 import CommissionManagement from "./components/CommissionManagement"
 import { AlertDialog } from "@/components/ui/alert-dialog"
 import PracticesManagement from "./components/PracticesManagement"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("templates")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      router.push('/auth/login')
+    } catch (error) {
+      console.error('Errore durante il logout:', error)
+    }
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -115,6 +128,13 @@ export default function AdminDashboard() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         {/* ... il tuo codice esistente per il dialog ... */}
       </AlertDialog>
+
+      <Button 
+        onClick={handleLogout}
+        className="fixed top-4 right-4 bg-red-600 hover:bg-red-700 text-white"
+      >
+        Logout
+      </Button>
     </div>
   )
 } 
