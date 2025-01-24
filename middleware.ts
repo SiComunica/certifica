@@ -26,7 +26,7 @@ export async function middleware(req: NextRequest) {
 
   // Proteggi le rotte /dashboard
   if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Proteggi le rotte della commissione

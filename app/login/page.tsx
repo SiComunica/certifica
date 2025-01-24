@@ -2,10 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, FormProvider, Controller } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,8 +22,6 @@ import { Input } from "@/components/ui/input"
 import { Loader2, CreditCard } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
-import { Suspense } from 'react'
-import { signIn } from "next-auth/react"
 
 const loginSchema = z.object({
   email: z.string().email("Email non valida"),
@@ -32,166 +29,203 @@ const loginSchema = z.object({
   remember: z.boolean().default(false),
 })
 
-interface LoginFormData {
-  email: string
-  password: string
-  remember: boolean
-}
+type LoginFormData = z.infer<typeof loginSchema>
 
-function LoginContent() {
+export default function LoginPage() {
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const supabase = createClientComponentClient()
 
   const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
-      remember: false
+      remember: false,
     },
   })
 
-  const onSubmit = async (data: LoginFormData) => {
+  async function onSubmit(data: LoginFormData) {
     try {
-      setLoading(true)
-      const result = await signIn("credentials", {
+      setIsLoading(true)
+      console.log('Tentativo di login con:', data.email)
+      
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
-        redirect: false,
       })
 
-      if (result?.error) {
-        toast.error("Credenziali non valide")
-        return
+      if (error) {
+        throw error
       }
 
-      router.push("/dashboard")
-      router.refresh()
-    } catch (error) {
-      toast.error("Si è verificato un errore")
+      if (authData?.user) {
+        console.log('Login effettuato come:', authData.user.email)
+
+        if (authData.user.email === 'francescocro76@gmail.com') {
+          console.log('Reindirizzamento admin')
+          await router.push('/dashboard/admin')
+        } else {
+          console.log('Reindirizzamento user')
+          await router.push('/dashboard/user')
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Error:', error.message)
+      toast.error('Credenziali non valide')
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <FormProvider {...form}>
-      <div className="container relative flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-        <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-          <div className="absolute inset-0 bg-zinc-900" />
-          <div className="relative z-20 flex items-center text-lg font-medium">
-            <img src="/logo.png" alt="Logo" className="h-8" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="flex w-[800px] bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* Box Login */}
+        <div className="w-[400px] p-8">
+          <div className="text-center mb-8">
+            <Image
+              src="/images/certifica-logo.svg"
+              alt="SI Certifica"
+              width={180}
+              height={50}
+              className="mx-auto"
+            />
           </div>
-          <div className="relative z-20 mt-auto">
-            <blockquote className="space-y-2">
-              <p className="text-lg">
-                Piattaforma per la gestione delle certificazioni
-              </p>
-            </blockquote>
-          </div>
-        </div>
-        <div className="lg:p-8">
-          <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-            <div className="flex flex-col space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Accedi al tuo account
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Inserisci le tue credenziali per accedere
-              </p>
-            </div>
 
-            <Tabs defaultValue="credentials" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-1">
-                <TabsTrigger value="credentials">Email</TabsTrigger>
-              </TabsList>
-              <TabsContent value="credentials">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Tabs defaultValue="credentials" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="credentials">Credenziali</TabsTrigger>
+              <TabsTrigger value="cie">CIE</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="credentials">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email"
+                            placeholder="Inserisci la tua email" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            placeholder="Inserisci la password" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex items-center justify-between">
                     <FormField
                       control={form.control}
-                      name="email"
+                      name="remember"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="nome@esempio.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="remember"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                          <label
+                            htmlFor="remember"
+                            className="text-sm text-gray-600"
+                          >
+                            Memorizza credenziali
+                          </label>
+                        </div>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex items-center space-x-2">
-                      <FormField
-                        control={form.control}
-                        name="remember"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center space-x-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="text-sm font-medium leading-none">
-                              Ricordami
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex-1 text-right">
-                        <Link
-                          href="/auth/reset"
-                          className="text-sm text-muted-foreground hover:text-primary"
-                        >
-                          Password dimenticata?
-                        </Link>
-                      </div>
+                    
+                    <Link 
+                      href="/auth/reset-password"
+                      className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      Reimposta password
+                    </Link>
+                  </div>
+
+                  {form.formState.errors.root && (
+                    <div className="text-sm text-red-500">
+                      {form.formState.errors.root.message}
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Caricamento..." : "Accedi"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+                  )}
 
-            <p className="px-8 text-center text-sm text-muted-foreground">
-              Non hai un account?{" "}
-              <Link
-                href="/register"
-                className="underline underline-offset-4 hover:text-primary"
-              >
-                Registrati
-              </Link>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#007bff] hover:bg-blue-600 transition-colors"
+                    disabled={isLoading}
+                  >
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Invia
+                  </Button>
+                </form>
+              </Form>
+            </TabsContent>
+
+            <TabsContent value="cie">
+              <div className="text-center space-y-6">
+                <CreditCard className="h-16 w-16 mx-auto text-gray-400" />
+                <p className="text-gray-600">
+                  Accedi in modo sicuro utilizzando la tua Carta d'Identità Elettronica
+                </p>
+                <Button className="w-full bg-[#007bff] hover:bg-blue-600 transition-colors">
+                  Accedi con CIE
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Box Registrazione */}
+        <div className="w-[400px] bg-[#ff7f00] p-8 flex items-center">
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-white">
+              Non sei registrato?
+            </h2>
+            <p className="text-lg text-white/90">
+              La registrazione è gratuita e non comporta alcun impegno. 
+              Procedendo entrerai a far parte della piattaforma di certificazione dei contratti.
             </p>
+            <div className="space-y-4">
+              <Link href="/auth/register">
+                <Button className="w-full bg-white text-[#ff7f00] hover:bg-orange-50 transition-colors">
+                  Registrati
+                </Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="w-full border-white text-white hover:bg-white/10 transition-colors"
+              >
+                Contattaci
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </FormProvider>
-  )
-}
-
-export default function Login() {
-  return (
-    <Suspense fallback={<div>Caricamento...</div>}>
-      <LoginContent />
-    </Suspense>
+    </div>
   )
 }
