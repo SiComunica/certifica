@@ -146,15 +146,14 @@ const PROVINCE_ITALIANE = [
 
 export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [employeeData, setEmployeeData] = useState<EmployeeData>({
-    employeeName: formData.employeeName || "",
-    fiscalCode: formData.fiscalCode || "",
-    contractType: formData.contractType || "",
-    contractValue: formData.contractValue || 0,
-    isOdcec: formData.isOdcec || false,
-    isRenewal: formData.isRenewal || false,
-    quantity: formData.quantity || 1,
-    odcecNumber: formData.odcecNumber || "",
-    odcecProvince: formData.odcecProvince || "",
+    employeeName: formData?.employeeName || "",
+    fiscalCode: formData?.fiscalCode || "",
+    contractType: formData?.contractType || "",
+    isOdcec: formData?.isOdcec || false,
+    isRenewal: formData?.isRenewal || false,
+    quantity: formData?.quantity || 1,
+    odcecNumber: formData?.odcecNumber || "",
+    odcecProvince: formData?.odcecProvince || "",
   })
   const [contractTypes, setContractTypes] = useState<ContractType[]>([])
   const [priceInfo, setPriceInfo] = useState<any>(null)
@@ -209,14 +208,15 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("Form submitted:", employeeData) // Per debug
     
-    if (!employeeData.employeeName || !employeeData.fiscalCode || !employeeData.contractType) {
+    if (!employeeData.employeeName || !employeeData.fiscalCode) {
       toast.error("Compila tutti i campi obbligatori")
       return
     }
 
     if (employeeData.isOdcec) {
-      if (!employeeData.odcecNumber || !employeeData.odcecProvince || !employeeData.odcecDocument) {
+      if (!employeeData.odcecNumber || !employeeData.odcecProvince) {
         toast.error("Compila tutti i campi ODCEC")
         return
       }
@@ -299,21 +299,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           </div>
         )}
 
-        <div className="grid gap-2">
-          <Label htmlFor="quantity">Numero di Pratiche</Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            value={employeeData.quantity}
-            onChange={(e) => setEmployeeData(prev => ({ 
-              ...prev, 
-              quantity: parseInt(e.target.value) 
-            }))}
-            placeholder="Inserisci il numero di pratiche"
-          />
-        </div>
-
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -323,12 +308,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 setEmployeeData(prev => ({ ...prev, isOdcec: checked as boolean }))
               }
             />
-            <Label 
-              htmlFor="isOdcec" 
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Convenzione ODCEC
-            </Label>
+            <Label htmlFor="isOdcec">Convenzione ODCEC</Label>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -339,78 +319,34 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 setEmployeeData(prev => ({ ...prev, isRenewal: checked as boolean }))
               }
             />
-            <Label 
-              htmlFor="isRenewal"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Rinnovo Certificazione
-            </Label>
+            <Label htmlFor="isRenewal">Rinnovo Certificazione</Label>
           </div>
         </div>
 
         {employeeData.isOdcec && (
-          <div className="space-y-4 border p-4 rounded-lg bg-blue-50">
-            <h4 className="font-medium text-blue-600">Verifica ODCEC</h4>
-            
+          <div className="space-y-4 border p-4 rounded-lg">
             <div className="grid gap-2">
               <Label htmlFor="odcecNumber">Numero Iscrizione Albo *</Label>
               <Input
                 id="odcecNumber"
-                value={employeeData.odcecNumber || ""}
+                value={employeeData.odcecNumber}
                 onChange={(e) => setEmployeeData(prev => ({ 
                   ...prev, 
                   odcecNumber: e.target.value 
                 }))}
-                placeholder="Es. 12345"
                 required={employeeData.isOdcec}
               />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="odcecProvince">Provincia Ordine *</Label>
-              <Select
-                value={employeeData.odcecProvince || ""}
-                onValueChange={(value) => setEmployeeData(prev => ({ 
-                  ...prev, 
-                  odcecProvince: value 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona provincia" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVINCE_ITALIANE.map((provincia) => (
-                    <SelectItem key={provincia.value} value={provincia.value}>
-                      {provincia.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="text-sm text-blue-600">
-              <p>Per verificare l'iscrizione:</p>
-              <ul className="list-disc list-inside mt-1">
-                <li>Carica documento di iscrizione all'Albo</li>
-                <li>O tessera professionale</li>
-              </ul>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="odcecDocument">Documento ODCEC *</Label>
               <Input
-                id="odcecDocument"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    setEmployeeData(prev => ({ 
-                      ...prev, 
-                      odcecDocument: file 
-                    }))
-                  }
-                }}
+                id="odcecProvince"
+                value={employeeData.odcecProvince}
+                onChange={(e) => setEmployeeData(prev => ({ 
+                  ...prev, 
+                  odcecProvince: e.target.value 
+                }))}
                 required={employeeData.isOdcec}
               />
             </div>
@@ -443,6 +379,21 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             </div>
           </div>
         )}
+
+        <div className="grid gap-2">
+          <Label htmlFor="quantity">Numero di Pratiche</Label>
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            value={employeeData.quantity}
+            onChange={(e) => setEmployeeData(prev => ({ 
+              ...prev, 
+              quantity: parseInt(e.target.value) || 1
+            }))}
+            placeholder="Inserisci il numero di pratiche"
+          />
+        </div>
       </div>
 
       <div className="flex justify-end space-x-4 mt-6">

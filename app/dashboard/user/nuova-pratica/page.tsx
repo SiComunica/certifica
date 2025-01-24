@@ -43,6 +43,8 @@ export default function NewPractice() {
 
   const handleSubmit = async (stepData: any) => {
     try {
+      console.log("Step data received:", stepData)
+      
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error("Utente non autenticato")
@@ -53,40 +55,41 @@ export default function NewPractice() {
         ...formData,
         ...stepData
       }
-      setFormData(updatedFormData)
-
+      
       // Se è il primo step, crea una nuova pratica
       if (currentStep === 1) {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('practices')
           .insert({
             user_id: user.id,
             status: 'draft',
             data: updatedFormData,
+            employee_name: stepData.employeeName || '',
+            fiscal_code: stepData.fiscalCode || '',
             created_at: new Date().toISOString()
           })
-          .select()
-          .single()
 
-        if (error) throw error
-        
-        // Salva l'ID della pratica
-        setFormData(prev => ({
-          ...prev,
-          ...stepData,
-          practiceId: data.id
-        }))
+        if (error) {
+          console.error('Error details:', error)
+          throw error
+        }
       } else {
         // Aggiorna la pratica esistente
         const { error } = await supabase
           .from('practices')
           .update({ 
             data: updatedFormData,
+            employee_name: stepData.employeeName || '',
+            fiscal_code: stepData.fiscalCode || '',
             updated_at: new Date().toISOString()
           })
-          .eq('id', formData.practiceId)
+          .eq('user_id', user.id)
+          .eq('status', 'draft')
 
-        if (error) throw error
+        if (error) {
+          console.error('Error details:', error)
+          throw error
+        }
       }
 
       // Passa allo step successivo
