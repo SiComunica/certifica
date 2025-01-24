@@ -24,44 +24,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/admin/dashboard', req.url))
   }
 
-  // Proteggi le rotte /dashboard
   if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', req.url))
-  }
-
-  // Proteggi le rotte della commissione
-  if (req.nextUrl.pathname.startsWith('/dashboard/commission')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-
-    // Verifica ruolo commissione
-    const { data: profile } = await supabase
-      .from('commission_members')
-      .select('status')
-      .eq('user_id', session.user.id)
-      .single()
-
-    if (!profile || profile.status !== 'active') {
-      return NextResponse.redirect(new URL('/unauthorized', req.url))
-    }
-  }
-
-  // Proteggi le rotte admin
-  if (req.nextUrl.pathname.startsWith('/dashboard/admin')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user?.user_metadata?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/unauthorized', req.url))
-    }
+    return NextResponse.redirect(new URL('/auth/login', req.url))
   }
 
   return res
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*']
-} 
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|images|api).*)',
+  ],
+}
