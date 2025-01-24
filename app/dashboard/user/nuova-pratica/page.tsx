@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step2CompanyInfo from "./steps/Step2CompanyInfo"
+import Step2ContractInfo from "./steps/Step2ContractInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
 import { Steps } from "@/components/ui/steps"
@@ -40,25 +41,6 @@ export default function NewPractice() {
   const [formData, setFormData] = useState<FormData>({})
   const supabase = createClientComponentClient()
 
-  const steps = [
-    { 
-      title: "Dati Dipendente", 
-      description: "Inserisci i dati anagrafici del dipendente" 
-    },
-    { 
-      title: "Dati Azienda", 
-      description: "Verifica i dati aziendali" 
-    },
-    { 
-      title: "Documenti", 
-      description: "Carica i documenti necessari" 
-    },
-    { 
-      title: "Pagamento", 
-      description: "Completa il pagamento" 
-    }
-  ]
-
   const handleSubmit = async (stepData: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -67,34 +49,28 @@ export default function NewPractice() {
         return
       }
 
-      // Aggiorna formData con i nuovi dati dello step
       const updatedFormData = {
         ...formData,
         ...stepData
       }
       setFormData(updatedFormData)
 
-      // Se è il primo step, crea la pratica
+      // Se è il primo step, crea una nuova pratica
       if (currentStep === 1) {
         const { data, error } = await supabase
           .from('practices')
           .insert({
             user_id: user.id,
-            employee_name: `${stepData.firstName} ${stepData.lastName}`,
-            employee_fiscal_code: stepData.fiscalCode,
-            contract_type: stepData.contractType,
             status: 'draft',
-            payment_status: 'pending',
-            practice_number: `P${Date.now()}`,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            data: updatedFormData,
+            created_at: new Date().toISOString()
           })
           .select()
           .single()
 
         if (error) throw error
-
-        // Aggiorna formData con l'ID della pratica
+        
+        // Salva l'ID della pratica
         setFormData(prev => ({
           ...prev,
           ...stepData,
@@ -104,8 +80,8 @@ export default function NewPractice() {
         // Aggiorna la pratica esistente
         const { error } = await supabase
           .from('practices')
-          .update({
-            ...stepData,
+          .update({ 
+            data: updatedFormData,
             updated_at: new Date().toISOString()
           })
           .eq('id', formData.practiceId)
@@ -115,46 +91,48 @@ export default function NewPractice() {
 
       // Passa allo step successivo
       setCurrentStep(prev => prev + 1)
-
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Errore:', error)
-      toast.error("Errore durante il salvataggio dei dati")
+      toast.error(error.message || "Errore durante il salvataggio")
     }
   }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
-      <Card className="shadow-lg">
-        <CardHeader className="border-b pb-4">
+      <Card>
+        <CardHeader>
           <CardTitle>Nuova Pratica</CardTitle>
         </CardHeader>
-        <CardContent className="pt-6">
-          <div className="mb-8">
-            <Steps
-              steps={steps}
-              currentStep={currentStep}
-              className="mb-8"
-            />
-          </div>
+        <CardContent>
+          <Steps 
+            currentStep={currentStep} 
+            steps={[
+              { label: "Dati Dipendente" },
+              { label: "Dati Azienda" },
+              { label: "Documenti" },
+              { label: "Pagamento" }
+            ]} 
+          />
 
           {currentStep === 1 && (
             <Step1EmployeeInfo 
               formData={formData} 
-              onSubmit={handleSubmit} 
+              onSubmit={handleSubmit}
             />
           )}
           {currentStep === 2 && (
             <Step2CompanyInfo 
-              formData={formData} 
+              formData={formData}
               onSubmit={handleSubmit}
-              onBack={() => setCurrentStep(prev => prev - 1)}
+              onBack={() => setCurrentStep(1)}
             />
           )}
           {currentStep === 3 && (
             <Step3Documents 
               formData={formData}
               onSubmit={handleSubmit}
-              onBack={() => setCurrentStep(prev => prev - 1)}
+              onBack={() => setCurrentStep(2)}
             />
           )}
           {currentStep === 4 && (

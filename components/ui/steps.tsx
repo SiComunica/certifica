@@ -1,15 +1,15 @@
 interface Step {
-  title: string
-  description: string
+  label: string
+  description?: string
 }
 
 interface StepsProps {
-  steps: Step[]
   currentStep: number
+  steps: Step[]
   className?: string
 }
 
-export function Steps({ steps, currentStep, className = "" }: StepsProps) {
+export function Steps({ currentStep, steps, className = "" }: StepsProps) {
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="relative">
@@ -28,7 +28,7 @@ export function Steps({ steps, currentStep, className = "" }: StepsProps) {
 
             return (
               <div 
-                key={step.title} 
+                key={step.label} 
                 className="flex flex-col items-center"
               >
                 <div 
@@ -52,7 +52,7 @@ export function Steps({ steps, currentStep, className = "" }: StepsProps) {
                     font-medium
                     ${isActive || isCompleted ? 'text-gray-900' : 'text-gray-500'}
                   `}>
-                    {step.title}
+                    {step.label}
                   </div>
                   <div className="text-sm text-gray-500 max-w-[150px]">
                     {step.description}
