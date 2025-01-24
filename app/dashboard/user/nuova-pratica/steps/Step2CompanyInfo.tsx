@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 interface CompanyFormData {
   companyName: string
@@ -31,7 +32,9 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Pr
     postalCode: formData.postalCode || ""
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const supabase = createClientComponentClient()
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!companyData.companyName || !companyData.vatNumber) {
@@ -39,7 +42,28 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Pr
       return
     }
 
-    onSubmit(companyData)
+    try {
+      // Aggiorna i dati aziendali nella pratica
+      const { error } = await supabase
+        .from('practices')
+        .update({
+          company_name: companyData.companyName,
+          company_vat: companyData.vatNumber,
+          company_address: companyData.address,
+          company_city: companyData.city,
+          company_province: companyData.province,
+          company_postal_code: companyData.postalCode,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', formData.practiceId)
+
+      if (error) throw error
+
+      onSubmit(companyData)
+    } catch (error) {
+      console.error('Errore salvataggio dati azienda:', error)
+      toast.error("Errore durante il salvataggio dei dati aziendali")
+    }
   }
 
   return (

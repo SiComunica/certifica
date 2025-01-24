@@ -26,7 +26,7 @@ export async function middleware(req: NextRequest) {
 
   // Proteggi le rotte /dashboard
   if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', req.url))
+    return NextResponse.redirect(new URL('/auth/login', req.url))
   }
 
   // Proteggi le rotte della commissione
@@ -63,14 +63,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public|images|api).*)',
-  ],
+  matcher: ['/dashboard/:path*']
 } 

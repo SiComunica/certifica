@@ -48,7 +48,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [priceInfo, setPriceInfo] = useState<any>(null)
   const supabase = createClientComponentClient()
 
-  // Carica i tipi di contratto
   useEffect(() => {
     const loadContractTypes = async () => {
       try {
@@ -58,7 +57,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           .order('name')
 
         if (error) throw error
-        console.log('Contratti caricati:', data)
         setContractTypes(data || [])
       } catch (error) {
         console.error('Errore caricamento contratti:', error)
@@ -69,25 +67,19 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     loadContractTypes()
   }, [])
 
-  // Carica il prezzo quando viene selezionato un contratto
   useEffect(() => {
     const fetchPrice = async () => {
       if (!employeeData.contractType) return
 
       try {
-        console.log('Cerco prezzo per:', employeeData.contractType)
-        
         const { data: priceRange, error } = await supabase
           .from('price_ranges')
           .select('*')
           .eq('contract_type_id', employeeData.contractType)
           .eq('min_quantity', 1)
-          .eq('is_odcec', false)
-          .eq('is_renewal', false)
           .single()
 
         if (error) throw error
-        console.log('Prezzo trovato:', priceRange)
         setPriceInfo(priceRange)
       } catch (error) {
         console.error('Errore caricamento prezzo:', error)
@@ -105,13 +97,12 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
       return
     }
 
-    // Trova il nome del contratto dal suo ID
     const selectedContract = contractTypes.find(ct => ct.id.toString() === employeeData.contractType)
     
     onSubmit({
       ...employeeData,
-      contractTypeName: selectedContract?.name, // Aggiungiamo il nome del contratto
-      priceInfo // Includiamo le info sul prezzo
+      contractTypeName: selectedContract?.name,
+      priceInfo
     })
   }
 
@@ -152,7 +143,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             <SelectContent>
               {contractTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id.toString()}>
-                  {type.name} - {type.description}
+                  {type.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -161,7 +152,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
         {priceInfo?.is_percentage && (
           <div className="grid gap-2">
-            <Label htmlFor="contractValue">Valore del Contratto *</Label>
+            <Label htmlFor="contractValue">Valore del Contratto (€) *</Label>
             <Input
               id="contractValue"
               type="number"
@@ -178,21 +169,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           </div>
         )}
 
-        <div className="grid gap-2">
-          <Label htmlFor="quantity">Numero di Pratiche</Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            value={employeeData.quantity}
-            onChange={(e) => setEmployeeData(prev => ({ 
-              ...prev, 
-              quantity: parseInt(e.target.value) 
-            }))}
-            placeholder="Inserisci il numero di pratiche"
-          />
-        </div>
-
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -202,10 +178,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 setEmployeeData(prev => ({ ...prev, isOdcec: checked as boolean }))
               }
             />
-            <Label 
-              htmlFor="isOdcec" 
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
+            <Label htmlFor="isOdcec">
               Convenzione ODCEC
             </Label>
           </div>
@@ -218,106 +191,20 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 setEmployeeData(prev => ({ ...prev, isRenewal: checked as boolean }))
               }
             />
-            <Label 
-              htmlFor="isRenewal"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
+            <Label htmlFor="isRenewal">
               Rinnovo Certificazione
             </Label>
           </div>
         </div>
 
-        {employeeData.isOdcec && (
-          <div className="space-y-4 border p-4 rounded-lg bg-blue-50">
-            <h4 className="font-medium text-blue-600">Verifica ODCEC</h4>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="odcecNumber">Numero Iscrizione Albo *</Label>
-              <Input
-                id="odcecNumber"
-                value={employeeData.odcecNumber || ""}
-                onChange={(e) => setEmployeeData(prev => ({ 
-                  ...prev, 
-                  odcecNumber: e.target.value 
-                }))}
-                placeholder="Es. 12345"
-                required={employeeData.isOdcec}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="odcecProvince">Provincia Ordine *</Label>
-              <Select
-                value={employeeData.odcecProvince || ""}
-                onValueChange={(value) => setEmployeeData(prev => ({ 
-                  ...prev, 
-                  odcecProvince: value 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona provincia" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Lista province italiane */}
-                  <SelectItem value="MI">Milano</SelectItem>
-                  <SelectItem value="RM">Roma</SelectItem>
-                  {/* ... altre province ... */}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="text-sm text-blue-600">
-              <p>Per verificare l'iscrizione:</p>
-              <ul className="list-disc list-inside mt-1">
-                <li>Carica documento di iscrizione all'Albo</li>
-                <li>O tessera professionale</li>
-              </ul>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="odcecDocument">Documento ODCEC *</Label>
-              <Input
-                id="odcecDocument"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    // Gestione upload file
-                    setEmployeeData(prev => ({ 
-                      ...prev, 
-                      odcecDocument: file 
-                    }))
-                  }
-                }}
-                required={employeeData.isOdcec}
-              />
-            </div>
-          </div>
-        )}
-
         {priceInfo && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <div className="text-sm text-blue-600 font-medium">
-              {priceInfo.is_percentage && priceInfo.threshold_value ? (
-                <>
-                  <div>Costo base: €{priceInfo.base_price.toFixed(2)}</div>
-                  <div className="text-xs mt-1">
-                    + {priceInfo.percentage_value}% sul valore eccedente €{priceInfo.threshold_value.toFixed(2)}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>Costo pratica: €{priceInfo.base_price.toFixed(2)}</div>
-                  <div className="text-xs mt-1">
-                    * Il prezzo finale potrebbe variare in base a:
-                    <ul className="list-disc list-inside mt-1">
-                      <li>Quantità di pratiche ({employeeData.quantity})</li>
-                      {employeeData.isOdcec && <li>Convenzione ODCEC (applicata)</li>}
-                      {employeeData.isRenewal && <li>Rinnovo certificazione (applicato)</li>}
-                    </ul>
-                  </div>
-                </>
+            <div className="text-sm text-blue-600">
+              <div>Costo base: €{priceInfo.base_price.toFixed(2)}</div>
+              {priceInfo.is_percentage && (
+                <div className="text-xs mt-1">
+                  + {priceInfo.percentage_value}% sul valore eccedente €{priceInfo.threshold_value.toFixed(2)}
+                </div>
               )}
             </div>
           </div>

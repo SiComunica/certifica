@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 
 interface Props {
   formData: any
@@ -30,14 +30,20 @@ interface Convention {
   discount: number
 }
 
+const EASYCOMMERCE_URL = "https://uniupo.temposrl.it/easycommerce"
+const AUTH_TOKEN = "YOUR_AUTH_TOKEN" // Da configurare
+
 export default function Step4Payment({ formData, setFormData }: Props) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [totalPrice, setTotalPrice] = useState<number>(0)
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'error'>('pending')
+  const [iuv, setIuv] = useState<string>("")
   const supabase = createClientComponentClient()
   const router = useRouter()
   const [conventionCode, setConventionCode] = useState("")
   const [isCheckingCode, setIsCheckingCode] = useState(false)
   const [appliedConvention, setAppliedConvention] = useState<Convention | null>(null)
+  const [paymentCompleted, setPaymentCompleted] = useState(false)
 
   useEffect(() => {
     const calculateTotal = async () => {
@@ -131,34 +137,23 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     calculateTotal()
   }, [formData])
 
-  // PRIMA MODIFICA: Nuova funzione handlePayment
-  const handlePayment = async () => {
-    try {
-      setIsProcessing(true)
+  // Reindirizza a EasyCommerce per il pagamento
+  const handlePayment = () => {
+    setIsProcessing(true)
+    
+    // Costruiamo l'URL completo di ritorno
+    const returnUrl = `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`
+    
+    // Costruiamo l'URL di EasyCommerce con tutti i parametri necessari
+    const redirectUrl = new URL(`${EASYCOMMERCE_URL}/Payment`)
+    redirectUrl.searchParams.append('returnUrl', returnUrl)
+    redirectUrl.searchParams.append('practiceId', formData.practiceId)
+    redirectUrl.searchParams.append('amount', (formData.totalPrice * 100).toString())
+    redirectUrl.searchParams.append('description', `Certificazione 24 CFU - ${formData.employeeName}`)
+    redirectUrl.searchParams.append('fiscalCode', formData.fiscalCode)
 
-      // 1. Aggiorniamo lo stato della pratica
-      const { error } = await supabase
-        .from('practices')
-        .update({ 
-          status: 'payment_pending',
-          payment_started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', formData.practiceId)
-
-      if (error) throw error
-
-      // 2. Redirect a PagoPA con ritorno alla dashboard
-      const PAGOPA_URL = "https://solutionpa.intesasanpaolo.com/IntermediarioPaPortalFe/pagamenti/access?idDominioPA=80213750583"
-      const RETURN_URL = `${window.location.origin}/dashboard/user`
-      
-      window.location.href = `${PAGOPA_URL}&returnUrl=${encodeURIComponent(RETURN_URL)}`
-
-    } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Errore durante l'avvio del pagamento")
-      setIsProcessing(false)
-    }
+    // Redirect a EasyCommerce
+    window.location.href = redirectUrl.toString()
   }
 
   const handleCancel = async () => {
@@ -225,6 +220,59 @@ export default function Step4Payment({ formData, setFormData }: Props) {
   const finalTotal = appliedConvention 
     ? totalPrice - (totalPrice * appliedConvention.discount / 100)
     : totalPrice
+
+  // Controlla lo stato del pagamento al ritorno da EasyCommerce
+  useEffect(() => {
+    const checkPaymentStatus = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const paymentStatus = urlParams.get('esito')
+      const iuv = urlParams.get('iuv')
+
+      if (paymentStatus === 'OK' && iuv) {
+        try {
+          const { error } = await supabase
+            .from('practices')
+            .update({ 
+              payment_status: 'completed',
+              payment_iuv: iuv,
+              payment_date: new Date().toISOString()
+            })
+            .eq('id', formData.practiceId)
+
+          if (error) throw error
+
+          setPaymentCompleted(true)
+          toast.success("Pagamento completato con successo")
+        } catch (error) {
+          console.error('Errore:', error)
+          toast.error("Errore nell'aggiornamento dello stato del pagamento")
+        }
+      }
+    }
+
+    checkPaymentStatus()
+  }, [])
+
+  // Invia la pratica alla commissione
+  const handleSubmitPractice = async () => {
+    try {
+      const { error } = await supabase
+        .from('practices')
+        .update({ 
+          status: 'submitted',
+          submitted_at: new Date().toISOString()
+        })
+        .eq('id', formData.practiceId)
+
+      if (error) throw error
+
+      toast.success("Pratica inviata con successo")
+      router.push('/dashboard/user/practices')
+    } catch (error) {
+      console.error('Errore:', error)
+      toast.error("Errore nell'invio della pratica")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -366,13 +414,29 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         >
           Annulla
         </Button>
-        <Button
-          onClick={handlePayment}
-          disabled={isProcessing}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
-        </Button>
+        {paymentCompleted ? (
+          <Button
+            onClick={handleSubmitPractice}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Invia Pratica alla Commissione
+          </Button>
+        ) : (
+          <Button
+            onClick={handlePayment}
+            disabled={isProcessing}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Reindirizzamento al pagamento...
+              </>
+            ) : (
+              "Procedi al Pagamento"
+            )}
+          </Button>
+        )}
       </div>
     </div>
   )

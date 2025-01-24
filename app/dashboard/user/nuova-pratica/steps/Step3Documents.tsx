@@ -36,7 +36,6 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
           .order('id')
 
         if (error) throw error
-        console.log('Templates caricati:', data)
         setTemplates(data || [])
       } catch (error) {
         console.error('Errore caricamento templates:', error)
@@ -50,16 +49,12 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
   const handleDownloadTemplate = async (template: Template) => {
     try {
       const cleanPath = template.file_path.replace(/^\/+/, '')
-      console.log('Percorso pulito:', cleanPath)
 
       const { data, error } = await supabase.storage
         .from('templates')
         .download(cleanPath)
 
-      if (error) {
-        console.error('Errore Supabase dettagliato:', error)
-        throw error
-      }
+      if (error) throw error
 
       if (!data) {
         throw new Error('Nessun dato ricevuto dal server')
@@ -88,7 +83,6 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
     try {
       setIsUploading(true)
 
-      // Upload file to Supabase Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
       const filePath = `${formData.practiceId}/${fileName}`
@@ -97,12 +91,8 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
         .from('uploads')
         .upload(filePath, file)
 
-      if (uploadError) {
-        console.error('Errore upload dettagliato:', uploadError)
-        throw uploadError
-      }
+      if (uploadError) throw uploadError
 
-      // Add document to list
       const newDoc = {
         name: file.name,
         path: filePath,
@@ -123,7 +113,6 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
 
   const handleSubmit = async () => {
     try {
-      // Aggiorna la pratica con i documenti
       const { error } = await supabase
         .from('practices')
         .update({ 
@@ -172,63 +161,36 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
                   </Button>
                 </div>
 
-                {/* Lista documenti caricati per questo template */}
                 {documents.filter(doc => doc.template_id === template.id).map((doc, index) => (
                   <div 
                     key={index}
                     className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded mt-2"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 text-green-600">
-                        <FileText className="w-4 h-4" />
-                        <span className="text-xs font-medium">Firmato</span>
-                      </div>
+                      <FileText className="w-4 h-4 text-green-600" />
                       <span className="text-sm">{doc.name}</span>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-500">
-                        Caricato il {new Date(doc.uploaded_at).toLocaleDateString()}
-                      </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => {
-                          setDocuments(prev => prev.filter((d, i) => i !== index))
-                          toast.success("Documento rimosso")
-                        }}
-                      >
-                        Rimuovi
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => {
+                        setDocuments(prev => prev.filter((d, i) => i !== index))
+                        toast.success("Documento rimosso")
+                      }}
+                    >
+                      Rimuovi
+                    </Button>
                   </div>
                 ))}
 
-                {/* Stato del documento */}
-                <div className="mt-2 text-sm">
-                  {documents.some(doc => doc.template_id === template.id) ? (
-                    <div className="text-green-600 flex items-center gap-1">
-                      <span>✓</span> Documento firmato caricato
-                    </div>
-                  ) : template.is_required ? (
-                    <div className="text-amber-600 flex items-center gap-1">
-                      <span>!</span> Caricamento documento richiesto
-                    </div>
-                  ) : (
-                    <div className="text-gray-500">
-                      Caricamento opzionale
-                    </div>
-                  )}
-                </div>
-
-                {/* Upload nuovo documento */}
                 <div className="mt-2">
                   <label className="flex items-center justify-center w-full p-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
                     <div className="flex items-center gap-2">
                       <Upload className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-500">
                         {documents.some(doc => doc.template_id === template.id)
-                          ? "Sostituisci documento firmato"
+                          ? "Sostituisci documento"
                           : "Carica documento firmato"
                         }
                       </span>

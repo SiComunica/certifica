@@ -1,41 +1,170 @@
 "use client"
 
-import { useState } from 'react'
+import { useState } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { toast } from "sonner"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
+import Step2CompanyInfo from "./steps/Step2CompanyInfo"
+import Step3Documents from "./steps/Step3Documents"
+import Step4Payment from "./steps/Step4Payment"
+import { Steps } from "@/components/ui/steps"
 
-export default function NuovaPraticaPage() {
-  const [loading, setLoading] = useState(false)
+interface FormData {
+  practiceId?: string
+  employeeName?: string
+  fiscalCode?: string
+  contractType?: string
+  totalPrice?: number
+  productCode?: string
+  employeeInfo?: {
+    firstName: string
+    lastName: string
+    fiscalCode: string
+    email?: string
+  }
+  companyInfo?: {
+    companyName: string
+    vatNumber: string
+  }
+  documents?: Array<{
+    name: string
+    path: string
+    template_id: number
+  }>
+  [key: string]: any
+}
+
+export default function NewPractice() {
+  const [currentStep, setCurrentStep] = useState(1)
+  const [formData, setFormData] = useState<FormData>({})
+  const supabase = createClientComponentClient()
+
+  const steps = [
+    { 
+      title: "Dati Dipendente", 
+      description: "Inserisci i dati anagrafici del dipendente" 
+    },
+    { 
+      title: "Dati Azienda", 
+      description: "Verifica i dati aziendali" 
+    },
+    { 
+      title: "Documenti", 
+      description: "Carica i documenti necessari" 
+    },
+    { 
+      title: "Pagamento", 
+      description: "Completa il pagamento" 
+    }
+  ]
+
+  const handleSubmit = async (stepData: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Utente non autenticato")
+        return
+      }
+
+      // Aggiorna formData con i nuovi dati dello step
+      const updatedFormData = {
+        ...formData,
+        ...stepData
+      }
+      setFormData(updatedFormData)
+
+      // Se è il primo step, crea la pratica
+      if (currentStep === 1) {
+        const { data, error } = await supabase
+          .from('practices')
+          .insert({
+            user_id: user.id,
+            employee_name: `${stepData.firstName} ${stepData.lastName}`,
+            employee_fiscal_code: stepData.fiscalCode,
+            contract_type: stepData.contractType,
+            status: 'draft',
+            payment_status: 'pending',
+            practice_number: `P${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+
+        // Aggiorna formData con l'ID della pratica
+        setFormData(prev => ({
+          ...prev,
+          ...stepData,
+          practiceId: data.id
+        }))
+      } else {
+        // Aggiorna la pratica esistente
+        const { error } = await supabase
+          .from('practices')
+          .update({
+            ...stepData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', formData.practiceId)
+
+        if (error) throw error
+      }
+
+      // Passa allo step successivo
+      setCurrentStep(prev => prev + 1)
+
+    } catch (error) {
+      console.error('Errore:', error)
+      toast.error("Errore durante il salvataggio dei dati")
+    }
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Nuova Pratica</h1>
-      
-      {loading ? (
-        <div>Caricamento...</div>
-      ) : (
-        <form onSubmit={(e) => {
-          e.preventDefault()
-          console.log('Form submitted')
-        }}>
-          <div className="space-y-4">
-            <input 
-              type="text" 
-              placeholder="Nome"
-              className="w-full p-2 border rounded"
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <Card className="shadow-lg">
+        <CardHeader className="border-b pb-4">
+          <CardTitle>Nuova Pratica</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="mb-8">
+            <Steps
+              steps={steps}
+              currentStep={currentStep}
+              className="mb-8"
             />
-            <input 
-              type="text" 
-              placeholder="Cognome"
-              className="w-full p-2 border rounded"
-            />
-            <button 
-              type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded"
-            >
-              Invia
-            </button>
           </div>
-        </form>
-      )}
+
+          {currentStep === 1 && (
+            <Step1EmployeeInfo 
+              formData={formData} 
+              onSubmit={handleSubmit} 
+            />
+          )}
+          {currentStep === 2 && (
+            <Step2CompanyInfo 
+              formData={formData} 
+              onSubmit={handleSubmit}
+              onBack={() => setCurrentStep(prev => prev - 1)}
+            />
+          )}
+          {currentStep === 3 && (
+            <Step3Documents 
+              formData={formData}
+              onSubmit={handleSubmit}
+              onBack={() => setCurrentStep(prev => prev - 1)}
+            />
+          )}
+          {currentStep === 4 && (
+            <Step4Payment 
+              formData={formData}
+              setFormData={setFormData}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
