@@ -163,12 +163,13 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       if (!user) throw new Error("Utente non autenticato")
 
       console.log('Form Data:', formData)
+      console.log('Dati dipendente:', formData.dipendente)
 
       // Verifica dettagliata dei dati mancanti
       const missingFields = []
-      if (!formData.nome) missingFields.push('Nome')
-      if (!formData.cognome) missingFields.push('Cognome')
-      if (!formData.codiceFiscale) missingFields.push('Codice Fiscale')
+      if (!formData.dipendente?.nome) missingFields.push('Nome')
+      if (!formData.dipendente?.cognome) missingFields.push('Cognome')
+      if (!formData.dipendente?.codiceFiscale) missingFields.push('Codice Fiscale')
 
       if (missingFields.length > 0) {
         throw new Error(`Dati mancanti: ${missingFields.join(', ')}`)
@@ -189,9 +190,9 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       // Prepara i dati per la richiesta di pagamento
       const paymentData = {
         Email: user.email || '',
-        Name: formData.nome,
-        Surname: formData.cognome,
-        CF: formData.codiceFiscale,
+        Name: formData.dipendente.nome,
+        Surname: formData.dipendente.cognome,
+        CF: formData.dipendente.codiceFiscale,
       }
 
       console.log('Dati pagamento:', paymentData)
@@ -220,9 +221,9 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         .update({
           payment_started_at: new Date().toISOString(),
           payment_status: 'pending',
-          employee_name: formData.nome,
-          employee_surname: formData.cognome,
-          employee_fiscal_code: formData.codiceFiscale
+          employee_name: formData.dipendente.nome,
+          employee_surname: formData.dipendente.cognome,
+          employee_fiscal_code: formData.dipendente.codiceFiscale
         })
         .eq('id', practice.id)
 
@@ -356,6 +357,10 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     }
   }
 
+  // Mostra i dati che abbiamo
+  const employeeData = formData.dipendente || {}
+  const contractData = formData.contratto || {}
+
   if (!productDetails) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -418,18 +423,18 @@ export default function Step4Payment({ formData, setFormData }: Props) {
             <div className="space-y-2">
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Dipendente:</span>
-                <span className="font-medium">{formData.employeeName}</span>
+                <span className="font-medium">{employeeData.nome} {employeeData.cognome}</span>
               </div>
               
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Tipo Contratto:</span>
-                <span className="font-medium">{formData.contractTypeName}</span>
+                <span className="font-medium">{contractData.tipo}</span>
               </div>
 
-              {formData.contractValue > 0 && (
+              {contractData.tariffa && (
                 <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Valore Contratto:</span>
-                  <span className="font-medium">€{formData.contractValue.toFixed(2)}</span>
+                  <span className="text-gray-600">Tariffa:</span>
+                  <span className="font-medium">€{contractData.tariffa.toFixed(2)}</span>
                 </div>
               )}
 
