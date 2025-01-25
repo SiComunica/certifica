@@ -4,36 +4,52 @@ export async function POST(request: Request) {
   try {
     const { paymentData, practiceId } = await request.json()
 
-    // Usa l'API GeneraAvviso come specificato nella documentazione
+    console.log('Dati ricevuti:', { paymentData, practiceId })
+
+    const paymentRequest = {
+      codiceprodotto: "CERT_CONTR",
+      prezzo: 10000,
+      nomecognome: `${paymentData.Name} ${paymentData.Surname}`,
+      codicefiscale: paymentData.CF,
+      email: paymentData.Email
+    }
+
+    console.log('Richiesta a EasyCommerce:', paymentRequest)
+
     const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        codiceprodotto: "CERT_CONTR", // Codice del prodotto per la certificazione contratto
-        prezzo: 10000, // 100 euro in centesimi
-        nomecognome: `${paymentData.Name} ${paymentData.Surname}`,
-        codicefiscale: paymentData.CF,
-        email: paymentData.Email
-      })
+      body: JSON.stringify(paymentRequest)
     })
 
+    console.log('Status risposta:', response.status)
+    const responseText = await response.text()
+    console.log('Risposta EasyCommerce:', responseText)
+
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Errore EasyCommerce: ${error}`)
+      throw new Error(`Errore EasyCommerce: ${responseText}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(responseText)
     
-    // Costruisci l'URL di redirect usando il codice avviso ricevuto
     const redirectUrl = `https://uniupo.temposrl.it/easycommerce/Payment/Show/${data.codiceavviso}?returnUrl=${encodeURIComponent(
       `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/user/nuova-pratica/payment-callback?practiceId=${practiceId}`
     )}`
 
+    console.log('URL di redirect:', redirectUrl)
+
     return NextResponse.json({ redirectUrl })
-  } catch (error) {
-    console.error('Errore avvio pagamento:', error)
-    return NextResponse.json({ error: 'Errore durante l\'avvio del pagamento' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Errore dettagliato:', error)
+    return NextResponse.json(
+      { 
+        error: 'Errore durante l\'avvio del pagamento',
+        details: error.message 
+      }, 
+      { status: 500 }
+    )
   }
 } 

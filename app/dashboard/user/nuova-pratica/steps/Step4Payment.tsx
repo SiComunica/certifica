@@ -181,21 +181,12 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       // Prepara i dati per la richiesta di pagamento
       const paymentData = {
         Email: user.email,
-        Residence: 0, // Italia
-        CfSituation: 1, // Con CF Italiano
-        CF: practice.employee_fiscal_code,
         Name: practice.employee_name,
         Surname: practice.employee_surname,
-        Address: practice.employee_address || "",
-        City: practice.employee_city || "",
-        Location: practice.employee_location || "",
-        Cap: practice.employee_postal_code || "",
-        Birthdate: practice.employee_birth_date,
-        Gender: practice.employee_gender === 'male' ? 'M' : 'F',
-        Phone: practice.employee_phone || "",
-        Born: 0, // Italia
-        BornCity: practice.employee_birth_place || "",
+        CF: practice.employee_fiscal_code,
       }
+
+      console.log('Invio dati pagamento:', paymentData)
 
       // Invia la richiesta al nostro endpoint
       const response = await fetch('/api/payment/start', {
@@ -205,17 +196,18 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         },
         body: JSON.stringify({
           paymentData,
-          practiceId: practice.id,
-          categoryId: productDetails.categoryId,
-          productId: productDetails.productId
+          practiceId: practice.id
         })
       })
 
       if (!response.ok) {
-        throw new Error('Errore durante l\'avvio del pagamento')
+        const errorData = await response.json()
+        throw new Error(errorData.details || 'Errore durante l\'avvio del pagamento')
       }
 
       const { redirectUrl } = await response.json()
+
+      console.log('URL di redirect ricevuto:', redirectUrl)
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
@@ -232,7 +224,7 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       window.location.href = redirectUrl
 
     } catch (error: any) {
-      console.error('Errore durante l\'avvio del pagamento:', error)
+      console.error('Errore dettagliato:', error)
       toast.error(error.message || "Errore durante l'avvio del pagamento")
       setIsProcessing(false)
     }
