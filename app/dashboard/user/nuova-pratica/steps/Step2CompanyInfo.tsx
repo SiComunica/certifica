@@ -43,7 +43,6 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
     }
 
     try {
-      // Log dei dati che stiamo per inviare
       console.log("Dati aziendali da salvare:", companyData)
 
       const { data: { user } } = await supabase.auth.getUser()
@@ -52,19 +51,23 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
         return
       }
 
-      console.log("User ID:", user.id)
-
-      // Cerca prima la pratica in bozza
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .select('id')
         .eq('user_id', user.id)
         .eq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single()
 
       if (practiceError) {
         console.error('Errore ricerca pratica:', practiceError)
         throw practiceError
+      }
+
+      if (!practice) {
+        toast.error("Nessuna pratica in bozza trovata")
+        return
       }
 
       console.log("Pratica trovata:", practice)
@@ -79,13 +82,10 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
         updated_at: new Date().toISOString()
       }
 
-      console.log("Dati di aggiornamento:", updateData)
-
       const { error } = await supabase
         .from('practices')
         .update(updateData)
-        .eq('id', practice.id)  // Usa l'ID specifico della pratica
-        .eq('status', 'draft')
+        .eq('id', practice.id)
 
       if (error) {
         console.error('Errore aggiornamento pratica:', error)
@@ -93,9 +93,8 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
       }
 
       console.log("Aggiornamento completato con successo")
-      
-      // Se tutto va bene, procedi allo step successivo
       onSubmit(companyData)
+      
     } catch (error: any) {
       console.error('Errore completo:', error)
       toast.error(error.message || "Errore durante il salvataggio dei dati aziendali")
