@@ -137,23 +137,57 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     calculateTotal()
   }, [formData])
 
-  // Reindirizza a EasyCommerce per il pagamento
-  const handlePayment = () => {
-    setIsProcessing(true)
-    
-    // Costruiamo l'URL completo di ritorno
-    const returnUrl = `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`
-    
-    // Costruiamo l'URL di EasyCommerce con tutti i parametri necessari
-    const redirectUrl = new URL(`${EASYCOMMERCE_URL}/Payment`)
-    redirectUrl.searchParams.append('returnUrl', returnUrl)
-    redirectUrl.searchParams.append('practiceId', formData.practiceId)
-    redirectUrl.searchParams.append('amount', (formData.totalPrice * 100).toString())
-    redirectUrl.searchParams.append('description', `Certificazione 24 CFU - ${formData.employeeName}`)
-    redirectUrl.searchParams.append('fiscalCode', formData.fiscalCode)
+  const handlePayment = async () => {
+    try {
+      setIsProcessing(true)
 
-    // Redirect a EasyCommerce
-    window.location.href = redirectUrl.toString()
+      // Ottieni l'utente corrente
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Utente non autenticato")
+
+      // Trova la pratica più recente in bozza
+      const { data: practice, error: practiceError } = await supabase
+        .from('practices')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (practiceError) throw practiceError
+
+      // Costruisci l'URL di EasyCommerce per l'acquisto
+      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/Payment')
+      
+      // Aggiungi i parametri richiesti
+      easyCommerceUrl.searchParams.append('returnUrl', `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`)
+      easyCommerceUrl.searchParams.append('categoryId', '16') // ID del magazzino CERTIFICAZIONE 24 CFU
+      easyCommerceUrl.searchParams.append('productId', '2107') // ID del prodotto
+      easyCommerceUrl.searchParams.append('qty', '1')
+      easyCommerceUrl.searchParams.append('description', `Certificazione Contratto - ${practice.employee_name}`)
+      easyCommerceUrl.searchParams.append('fiscalCode', practice.employee_fiscal_code)
+      easyCommerceUrl.searchParams.append('amount', '100') // Importo in euro
+
+      // Aggiorna lo stato della pratica
+      const { error: updateError } = await supabase
+        .from('practices')
+        .update({
+          payment_started_at: new Date().toISOString(),
+          payment_status: 'pending'
+        })
+        .eq('id', practice.id)
+
+      if (updateError) throw updateError
+
+      // Redirect a EasyCommerce
+      window.location.href = easyCommerceUrl.toString()
+
+    } catch (error: any) {
+      console.error('Errore durante l\'avvio del pagamento:', error)
+      toast.error(error.message || "Errore durante l'avvio del pagamento")
+      setIsProcessing(false)
+    }
   }
 
   const handleCancel = async () => {
