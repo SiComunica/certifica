@@ -16,20 +16,20 @@ interface CompanyFormData {
   postalCode: string
 }
 
-interface Step2Props {
+interface Props {
   formData: any
   onSubmit: (data: CompanyFormData) => void
   onBack: () => void
 }
 
-export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Props) {
+export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) {
   const [companyData, setCompanyData] = useState<CompanyFormData>({
-    companyName: formData.companyName || "",
-    vatNumber: formData.vatNumber || "",
-    address: formData.address || "",
-    city: formData.city || "",
-    province: formData.province || "",
-    postalCode: formData.postalCode || ""
+    companyName: formData?.companyName || "",
+    vatNumber: formData?.vatNumber || "",
+    address: formData?.address || "",
+    city: formData?.city || "",
+    province: formData?.province || "",
+    postalCode: formData?.postalCode || ""
   })
 
   const supabase = createClientComponentClient()
@@ -43,7 +43,13 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Pr
     }
 
     try {
-      // Aggiorna i dati aziendali nella pratica
+      // Aggiorna i dati aziendali
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Utente non autenticato")
+        return
+      }
+
       const { error } = await supabase
         .from('practices')
         .update({
@@ -55,14 +61,16 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Pr
           company_postal_code: companyData.postalCode,
           updated_at: new Date().toISOString()
         })
-        .eq('id', formData.practiceId)
+        .eq('user_id', user.id)
+        .eq('status', 'draft')
 
       if (error) throw error
 
+      // Se tutto va bene, procedi allo step successivo
       onSubmit(companyData)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Errore salvataggio dati azienda:', error)
-      toast.error("Errore durante il salvataggio dei dati aziendali")
+      toast.error(error.message || "Errore durante il salvataggio dei dati aziendali")
     }
   }
 
