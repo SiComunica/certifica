@@ -178,17 +178,18 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
-      // Costruisci l'URL di EasyCommerce
-      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/api/stores')
+      // Costruisci l'URL di EasyCommerce per il pagamento
+      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/api/authshop')
       
-      // Aggiungi i parametri necessari
-      easyCommerceUrl.searchParams.append('storeId', '16')
-      easyCommerceUrl.searchParams.append('categoryId', '37')
-      easyCommerceUrl.searchParams.append('productId', productDetails.productId)
-      easyCommerceUrl.searchParams.append('qty', '1')
-      easyCommerceUrl.searchParams.append('returnUrl', `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`)
-      easyCommerceUrl.searchParams.append('practiceId', practice.id)
-      easyCommerceUrl.searchParams.append('fiscalCode', practice.employee_fiscal_code || '')
+      // Aggiungi i parametri del percorso
+      easyCommerceUrl.pathname += `/${productDetails.categoryId}/${productDetails.productId}/1`
+
+      // Aggiungi i parametri di query
+      const searchParams = new URLSearchParams({
+        returnUrl: `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`,
+        practiceId: practice.id
+      })
+      easyCommerceUrl.search = searchParams.toString()
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
