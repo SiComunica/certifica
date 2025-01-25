@@ -64,7 +64,8 @@ export default function NewPractice() {
           data: updatedFormData,
           created_at: new Date().toISOString(),
           employee_name: stepData.employeeName || '',
-          employee_fiscal_code: stepData.fiscalCode || ''
+          employee_fiscal_code: stepData.fiscalCode || '',
+          contract_type: stepData.contractType || 'standard'
         }
 
         console.log("Inserting practice data:", practiceData)
@@ -86,7 +87,8 @@ export default function NewPractice() {
           data: updatedFormData,
           updated_at: new Date().toISOString(),
           employee_name: stepData.employeeName || '',
-          employee_fiscal_code: stepData.fiscalCode || ''
+          employee_fiscal_code: stepData.fiscalCode || '',
+          contract_type: stepData.contractType || 'standard'
         }
 
         console.log("Updating practice data:", updateData)
