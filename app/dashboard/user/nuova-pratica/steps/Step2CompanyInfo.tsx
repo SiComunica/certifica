@@ -43,33 +43,61 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
     }
 
     try {
-      // Aggiorna i dati aziendali
+      // Log dei dati che stiamo per inviare
+      console.log("Dati aziendali da salvare:", companyData)
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error("Utente non autenticato")
         return
       }
 
-      const { error } = await supabase
+      console.log("User ID:", user.id)
+
+      // Cerca prima la pratica in bozza
+      const { data: practice, error: practiceError } = await supabase
         .from('practices')
-        .update({
-          company_name: companyData.companyName,
-          company_vat: companyData.vatNumber,
-          company_address: companyData.address,
-          company_city: companyData.city,
-          company_province: companyData.province,
-          company_postal_code: companyData.postalCode,
-          updated_at: new Date().toISOString()
-        })
+        .select('id')
         .eq('user_id', user.id)
         .eq('status', 'draft')
+        .single()
 
-      if (error) throw error
+      if (practiceError) {
+        console.error('Errore ricerca pratica:', practiceError)
+        throw practiceError
+      }
 
+      console.log("Pratica trovata:", practice)
+
+      const updateData = {
+        company_name: companyData.companyName,
+        company_vat: companyData.vatNumber,
+        company_address: companyData.address || '',
+        company_city: companyData.city || '',
+        company_province: companyData.province || '',
+        company_postal_code: companyData.postalCode || '',
+        updated_at: new Date().toISOString()
+      }
+
+      console.log("Dati di aggiornamento:", updateData)
+
+      const { error } = await supabase
+        .from('practices')
+        .update(updateData)
+        .eq('id', practice.id)  // Usa l'ID specifico della pratica
+        .eq('status', 'draft')
+
+      if (error) {
+        console.error('Errore aggiornamento pratica:', error)
+        throw error
+      }
+
+      console.log("Aggiornamento completato con successo")
+      
       // Se tutto va bene, procedi allo step successivo
       onSubmit(companyData)
     } catch (error: any) {
-      console.error('Errore salvataggio dati azienda:', error)
+      console.error('Errore completo:', error)
       toast.error(error.message || "Errore durante il salvataggio dei dati aziendali")
     }
   }
