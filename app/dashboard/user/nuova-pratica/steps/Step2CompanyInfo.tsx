@@ -43,17 +43,16 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
     }
 
     try {
-      console.log("Dati aziendali da salvare:", companyData)
-
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error("Utente non autenticato")
         return
       }
 
+      // Cerca la pratica più recente in bozza
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
-        .select('id')
+        .select('id, data')
         .eq('user_id', user.id)
         .eq('status', 'draft')
         .order('created_at', { ascending: false })
@@ -70,21 +69,29 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
         return
       }
 
-      console.log("Pratica trovata:", practice)
-
-      const updateData = {
-        company_name: companyData.companyName,
-        company_vat: companyData.vatNumber,
-        company_address: companyData.address || '',
-        company_city: companyData.city || '',
-        company_province: companyData.province || '',
-        company_postal_code: companyData.postalCode || '',
-        updated_at: new Date().toISOString()
+      // Prepara i dati da salvare
+      const existingData = practice.data || {}
+      const updatedData = {
+        ...existingData,
+        company: {
+          name: companyData.companyName,
+          vatNumber: companyData.vatNumber,
+          address: companyData.address || '',
+          city: companyData.city || '',
+          province: companyData.province || '',
+          postalCode: companyData.postalCode || ''
+        }
       }
 
+      console.log("Dati da salvare:", updatedData)
+
+      // Aggiorna la pratica
       const { error } = await supabase
         .from('practices')
-        .update(updateData)
+        .update({
+          data: updatedData,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', practice.id)
 
       if (error) {
