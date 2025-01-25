@@ -6,15 +6,18 @@ export async function POST(request: Request) {
 
     console.log('Dati ricevuti:', { paymentData, practiceId })
 
-    const paymentRequest = {
-      codiceprodotto: "CERT_CONTR",
-      prezzo: 10000,
-      nomecognome: `${paymentData.Name} ${paymentData.Surname}`,
-      codicefiscale: paymentData.CF,
-      email: paymentData.Email
+    // Costruisci l'oggetto Acquisto come specificato nell'XSD
+    const acquisto = {
+      Acquisto: {
+        nomecognome: `${paymentData.Name} ${paymentData.Surname}`.trim(),
+        codicefiscale: paymentData.CF,
+        email: paymentData.Email,
+        codiceprodotto: "CERT_CONTR",
+        prezzo: 10000 // 100 euro in centesimi
+      }
     }
 
-    console.log('Richiesta a EasyCommerce:', paymentRequest)
+    console.log('Richiesta a EasyCommerce:', acquisto)
 
     const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso', {
       method: 'POST',
@@ -22,7 +25,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(paymentRequest)
+      body: JSON.stringify(acquisto)
     })
 
     console.log('Status risposta:', response.status)
@@ -33,9 +36,19 @@ export async function POST(request: Request) {
       throw new Error(`Errore EasyCommerce: ${responseText}`)
     }
 
-    const data = JSON.parse(responseText)
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (e) {
+      console.error('Errore parsing JSON:', e)
+      throw new Error('Risposta non valida da EasyCommerce')
+    }
+
+    if (!data.codiceavviso) {
+      throw new Error('Codice avviso mancante nella risposta')
+    }
     
-    const redirectUrl = `https://uniupo.temposrl.it/easycommerce/Payment/Show/${data.codiceavviso}?returnUrl=${encodeURIComponent(
+    const redirectUrl = `https://uniupo.temposrl.it/easycommerce/Payment?numeroAvviso=${data.codiceavviso}&returnUrl=${encodeURIComponent(
       `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/user/nuova-pratica/payment-callback?practiceId=${practiceId}`
     )}`
 
@@ -47,7 +60,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         error: 'Errore durante l\'avvio del pagamento',
-        details: error.message 
+        details: error.message,
+        stack: error.stack
       }, 
       { status: 500 }
     )

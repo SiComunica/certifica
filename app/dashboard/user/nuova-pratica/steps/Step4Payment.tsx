@@ -174,9 +174,16 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
-      // Verifica che tutti i dati necessari siano presenti
-      if (!practice.employee_name || !practice.employee_surname || !practice.employee_fiscal_code) {
-        throw new Error("Dati dell'utente incompleti")
+      console.log('Dati pratica:', practice)
+
+      // Verifica dettagliata dei dati mancanti
+      const missingFields = []
+      if (!practice.employee_name) missingFields.push('Nome')
+      if (!practice.employee_surname) missingFields.push('Cognome')
+      if (!practice.employee_fiscal_code) missingFields.push('Codice Fiscale')
+
+      if (missingFields.length > 0) {
+        throw new Error(`Dati mancanti: ${missingFields.join(', ')}`)
       }
 
       // Prepara i dati per la richiesta di pagamento
@@ -187,7 +194,7 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         CF: practice.employee_fiscal_code,
       }
 
-      console.log('Invio dati pagamento:', paymentData)
+      console.log('Dati pagamento:', paymentData)
 
       // Invia la richiesta al nostro endpoint
       const response = await fetch('/api/payment/start', {
@@ -206,8 +213,6 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       if (!response.ok) {
         throw new Error(responseData.details || 'Errore durante l\'avvio del pagamento')
       }
-
-      console.log('Risposta ricevuta:', responseData)
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
