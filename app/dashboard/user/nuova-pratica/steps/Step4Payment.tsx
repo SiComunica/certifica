@@ -139,10 +139,9 @@ export default function Step4Payment({ formData, setFormData }: Props) {
   }, [formData])
 
   useEffect(() => {
-    // Carica i dettagli del prodotto da EasyCommerce
     const fetchProductDetails = async () => {
       try {
-        const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/stores/16/37')
+        const response = await fetch('/api/payment/product-details')
         if (!response.ok) throw new Error('Errore nel caricamento del prodotto')
         const data = await response.json()
         setProductDetails(data[0]) // Prendiamo il primo prodotto della vetrina
@@ -183,8 +182,8 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/api/stores')
       
       // Aggiungi i parametri necessari
-      easyCommerceUrl.searchParams.append('storeId', '16') // ID del magazzino CERTIFICAZIONE
-      easyCommerceUrl.searchParams.append('categoryId', '37') // ID della categoria
+      easyCommerceUrl.searchParams.append('storeId', '16')
+      easyCommerceUrl.searchParams.append('categoryId', '37')
       easyCommerceUrl.searchParams.append('productId', productDetails.productId)
       easyCommerceUrl.searchParams.append('qty', '1')
       easyCommerceUrl.searchParams.append('returnUrl', `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`)
