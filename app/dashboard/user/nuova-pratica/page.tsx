@@ -51,6 +51,7 @@ export default function NewPractice() {
         return
       }
 
+      const currentDate = new Date().toISOString()
       const updatedFormData = {
         ...formData,
         ...stepData
@@ -62,7 +63,8 @@ export default function NewPractice() {
           user_id: user.id,
           status: 'draft',
           data: updatedFormData,
-          created_at: new Date().toISOString(),
+          created_at: currentDate,
+          submission_date: currentDate,
           employee_name: stepData.employeeName || '',
           employee_fiscal_code: stepData.fiscalCode || '',
           contract_type: stepData.contractType || 'standard'
@@ -85,7 +87,8 @@ export default function NewPractice() {
       } else {
         const updateData = {
           data: updatedFormData,
-          updated_at: new Date().toISOString(),
+          updated_at: currentDate,
+          submission_date: currentDate,
           employee_name: stepData.employeeName || '',
           employee_fiscal_code: stepData.fiscalCode || '',
           contract_type: stepData.contractType || 'standard'
