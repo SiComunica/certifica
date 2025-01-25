@@ -158,10 +158,6 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     try {
       setIsProcessing(true)
 
-      if (!productDetails) {
-        throw new Error("Informazioni prodotto non disponibili")
-      }
-
       // Ottieni l'utente corrente
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utente non autenticato")
@@ -178,9 +174,14 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
+      // Verifica che tutti i dati necessari siano presenti
+      if (!practice.employee_name || !practice.employee_surname || !practice.employee_fiscal_code) {
+        throw new Error("Dati dell'utente incompleti")
+      }
+
       // Prepara i dati per la richiesta di pagamento
       const paymentData = {
-        Email: user.email,
+        Email: user.email || '',
         Name: practice.employee_name,
         Surname: practice.employee_surname,
         CF: practice.employee_fiscal_code,
@@ -200,14 +201,13 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         })
       })
 
+      const responseData = await response.json()
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.details || 'Errore durante l\'avvio del pagamento')
+        throw new Error(responseData.details || 'Errore durante l\'avvio del pagamento')
       }
 
-      const { redirectUrl } = await response.json()
-
-      console.log('URL di redirect ricevuto:', redirectUrl)
+      console.log('Risposta ricevuta:', responseData)
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
@@ -221,7 +221,7 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       if (updateError) throw updateError
 
       // Redirect all'URL di pagamento
-      window.location.href = redirectUrl
+      window.location.href = responseData.redirectUrl
 
     } catch (error: any) {
       console.error('Errore dettagliato:', error)
