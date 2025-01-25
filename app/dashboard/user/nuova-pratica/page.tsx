@@ -58,31 +58,42 @@ export default function NewPractice() {
       
       // Se è il primo step, crea una nuova pratica
       if (currentStep === 1) {
-        const { error } = await supabase
+        const practiceData = {
+          user_id: user.id,
+          status: 'draft',
+          data: updatedFormData,
+          created_at: new Date().toISOString(),
+          employee_name: stepData.employeeName || null,
+          fiscal_code: stepData.fiscalCode || null
+        }
+
+        console.log("Inserting practice data:", practiceData) // Per debug
+
+        const { data, error } = await supabase
           .from('practices')
-          .insert({
-            user_id: user.id,
-            status: 'draft',
-            data: updatedFormData,
-            employee_name: stepData.employeeName || '',
-            fiscal_code: stepData.fiscalCode || '',
-            created_at: new Date().toISOString()
-          })
+          .insert(practiceData)
+          .select()
+          .single()
 
         if (error) {
           console.error('Error details:', error)
           throw error
         }
+
+        console.log("Practice created:", data) // Per debug
       } else {
-        // Aggiorna la pratica esistente
+        const updateData = {
+          data: updatedFormData,
+          updated_at: new Date().toISOString(),
+          employee_name: stepData.employeeName || null,
+          fiscal_code: stepData.fiscalCode || null
+        }
+
+        console.log("Updating practice data:", updateData) // Per debug
+
         const { error } = await supabase
           .from('practices')
-          .update({ 
-            data: updatedFormData,
-            employee_name: stepData.employeeName || '',
-            fiscal_code: stepData.fiscalCode || '',
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('user_id', user.id)
           .eq('status', 'draft')
 
@@ -92,7 +103,7 @@ export default function NewPractice() {
         }
       }
 
-      // Passa allo step successivo
+      setFormData(updatedFormData)
       setCurrentStep(prev => prev + 1)
       
     } catch (error: any) {
