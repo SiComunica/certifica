@@ -162,6 +162,18 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utente non autenticato")
 
+      console.log('Form Data:', formData)
+
+      // Verifica dettagliata dei dati mancanti
+      const missingFields = []
+      if (!formData.nome) missingFields.push('Nome')
+      if (!formData.cognome) missingFields.push('Cognome')
+      if (!formData.codiceFiscale) missingFields.push('Codice Fiscale')
+
+      if (missingFields.length > 0) {
+        throw new Error(`Dati mancanti: ${missingFields.join(', ')}`)
+      }
+
       // Trova la pratica più recente in bozza
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
@@ -174,24 +186,12 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
-      console.log('Dati pratica:', practice)
-
-      // Verifica dettagliata dei dati mancanti
-      const missingFields = []
-      if (!practice.employee_name) missingFields.push('Nome')
-      if (!practice.employee_surname) missingFields.push('Cognome')
-      if (!practice.employee_fiscal_code) missingFields.push('Codice Fiscale')
-
-      if (missingFields.length > 0) {
-        throw new Error(`Dati mancanti: ${missingFields.join(', ')}`)
-      }
-
       // Prepara i dati per la richiesta di pagamento
       const paymentData = {
         Email: user.email || '',
-        Name: practice.employee_name,
-        Surname: practice.employee_surname,
-        CF: practice.employee_fiscal_code,
+        Name: formData.nome,
+        Surname: formData.cognome,
+        CF: formData.codiceFiscale,
       }
 
       console.log('Dati pagamento:', paymentData)
@@ -219,7 +219,10 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         .from('practices')
         .update({
           payment_started_at: new Date().toISOString(),
-          payment_status: 'pending'
+          payment_status: 'pending',
+          employee_name: formData.nome,
+          employee_surname: formData.cognome,
+          employee_fiscal_code: formData.codiceFiscale
         })
         .eq('id', practice.id)
 
