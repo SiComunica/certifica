@@ -44,6 +44,7 @@ export default function Step4Payment({ formData, setFormData }: Props) {
   const [isCheckingCode, setIsCheckingCode] = useState(false)
   const [appliedConvention, setAppliedConvention] = useState<Convention | null>(null)
   const [paymentCompleted, setPaymentCompleted] = useState(false)
+  const [productDetails, setProductDetails] = useState<any>(null)
 
   useEffect(() => {
     const calculateTotal = async () => {
@@ -137,28 +138,30 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     calculateTotal()
   }, [formData])
 
-  const getEasyToken = async () => {
-    const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        Username: process.env.NEXT_PUBLIC_EASY_USERNAME,
-        Password: process.env.NEXT_PUBLIC_EASY_PASSWORD
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('Errore durante l\'autenticazione con EasyCommerce')
+  useEffect(() => {
+    // Carica i dettagli del prodotto da EasyCommerce
+    const fetchProductDetails = async () => {
+      try {
+        const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/stores/16/37')
+        if (!response.ok) throw new Error('Errore nel caricamento del prodotto')
+        const data = await response.json()
+        setProductDetails(data[0]) // Prendiamo il primo prodotto della vetrina
+      } catch (error) {
+        console.error('Errore caricamento prodotto:', error)
+        toast.error("Errore nel caricamento delle informazioni di pagamento")
+      }
     }
 
-    return response.text()
-  }
+    fetchProductDetails()
+  }, [])
 
   const handlePayment = async () => {
     try {
       setIsProcessing(true)
+
+      if (!productDetails) {
+        throw new Error("Informazioni prodotto non disponibili")
+      }
 
       // Ottieni l'utente corrente
       const { data: { user } } = await supabase.auth.getUser()
@@ -177,13 +180,15 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       if (practiceError) throw practiceError
 
       // Costruisci l'URL di EasyCommerce
-      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/Payment')
+      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/api/stores')
       
       // Aggiungi i parametri necessari
+      easyCommerceUrl.searchParams.append('storeId', '16') // ID del magazzino CERTIFICAZIONE
+      easyCommerceUrl.searchParams.append('categoryId', '37') // ID della categoria
+      easyCommerceUrl.searchParams.append('productId', productDetails.productId)
+      easyCommerceUrl.searchParams.append('qty', '1')
       easyCommerceUrl.searchParams.append('returnUrl', `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`)
       easyCommerceUrl.searchParams.append('practiceId', practice.id)
-      easyCommerceUrl.searchParams.append('amount', '100')
-      easyCommerceUrl.searchParams.append('description', `Certificazione Contratto - ${practice.employee_name || ''}`)
       easyCommerceUrl.searchParams.append('fiscalCode', practice.employee_fiscal_code || '')
 
       // Aggiorna lo stato della pratica
@@ -323,6 +328,14 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       console.error('Errore:', error)
       toast.error("Errore nell'invio della pratica")
     }
+  }
+
+  if (!productDetails) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
   }
 
   return (
