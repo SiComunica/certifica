@@ -63,11 +63,11 @@ export default function NewPractice() {
           status: 'draft',
           data: updatedFormData,
           created_at: new Date().toISOString(),
-          employee_name: stepData.employeeName || null,
-          fiscal_code: stepData.fiscalCode || null
+          employee_name: stepData.employeeName || '',
+          employee_fiscal_code: stepData.fiscalCode || ''
         }
 
-        console.log("Inserting practice data:", practiceData) // Per debug
+        console.log("Inserting practice data:", practiceData)
 
         const { data, error } = await supabase
           .from('practices')
@@ -80,16 +80,16 @@ export default function NewPractice() {
           throw error
         }
 
-        console.log("Practice created:", data) // Per debug
+        console.log("Practice created:", data)
       } else {
         const updateData = {
           data: updatedFormData,
           updated_at: new Date().toISOString(),
-          employee_name: stepData.employeeName || null,
-          fiscal_code: stepData.fiscalCode || null
+          employee_name: stepData.employeeName || '',
+          employee_fiscal_code: stepData.fiscalCode || ''
         }
 
-        console.log("Updating practice data:", updateData) // Per debug
+        console.log("Updating practice data:", updateData)
 
         const { error } = await supabase
           .from('practices')
