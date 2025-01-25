@@ -137,6 +137,25 @@ export default function Step4Payment({ formData, setFormData }: Props) {
     calculateTotal()
   }, [formData])
 
+  const getEasyToken = async () => {
+    const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        Username: process.env.NEXT_PUBLIC_EASY_USERNAME,
+        Password: process.env.NEXT_PUBLIC_EASY_PASSWORD
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('Errore durante l\'autenticazione con EasyCommerce')
+    }
+
+    return response.text()
+  }
+
   const handlePayment = async () => {
     try {
       setIsProcessing(true)
@@ -157,17 +176,15 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
-      // Costruisci l'URL di EasyCommerce per l'acquisto
+      // Costruisci l'URL di EasyCommerce
       const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/Payment')
       
-      // Aggiungi i parametri richiesti
+      // Aggiungi i parametri necessari
       easyCommerceUrl.searchParams.append('returnUrl', `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`)
-      easyCommerceUrl.searchParams.append('categoryId', '16') // ID del magazzino CERTIFICAZIONE 24 CFU
-      easyCommerceUrl.searchParams.append('productId', '2107') // ID del prodotto
-      easyCommerceUrl.searchParams.append('qty', '1')
-      easyCommerceUrl.searchParams.append('description', `Certificazione Contratto - ${practice.employee_name}`)
-      easyCommerceUrl.searchParams.append('fiscalCode', practice.employee_fiscal_code)
-      easyCommerceUrl.searchParams.append('amount', '100') // Importo in euro
+      easyCommerceUrl.searchParams.append('practiceId', practice.id)
+      easyCommerceUrl.searchParams.append('amount', '100')
+      easyCommerceUrl.searchParams.append('description', `Certificazione Contratto - ${practice.employee_name || ''}`)
+      easyCommerceUrl.searchParams.append('fiscalCode', practice.employee_fiscal_code || '')
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
