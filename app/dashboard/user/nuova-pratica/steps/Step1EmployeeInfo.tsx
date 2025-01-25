@@ -8,13 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
-import { PROVINCE_ITALIANE } from "@/lib/constants"
+import { PROVINCE_ITALIANE } from "@/src/lib/constants"
 
-interface ContractType {
-  id: number
-  name: string
-  code: string
-  description: string
+interface Props {
+  formData: any
+  onSubmit: (data: any) => void
+}
+
+interface ProvinciaType {
+  value: string
+  label: string
 }
 
 interface EmployeeData {
@@ -30,9 +33,11 @@ interface EmployeeData {
   odcecDocument?: File
 }
 
-interface Props {
-  formData: any
-  onSubmit: (data: any) => void
+interface ContractType {
+  id: number
+  name: string
+  code: string
+  description: string
 }
 
 export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
@@ -40,6 +45,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     employeeName: formData?.employeeName || "",
     fiscalCode: formData?.fiscalCode || "",
     contractType: formData?.contractType || "",
+    contractValue: formData?.contractValue,
     isOdcec: formData?.isOdcec || false,
     isRenewal: formData?.isRenewal || false,
     quantity: formData?.quantity || 1,
@@ -244,7 +250,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                   <SelectValue placeholder="Seleziona provincia" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROVINCE_ITALIANE.map((provincia: Provincia) => (
+                  {(PROVINCE_ITALIANE as ProvinciaType[]).map((provincia) => (
                     <SelectItem key={provincia.value} value={provincia.value}>
                       {provincia.label}
                     </SelectItem>
