@@ -144,7 +144,7 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         const response = await fetch('/api/payment/product-details')
         if (!response.ok) throw new Error('Errore nel caricamento del prodotto')
         const data = await response.json()
-        setProductDetails(data[0]) // Prendiamo il primo prodotto della vetrina
+        setProductDetails(data[0])
       } catch (error) {
         console.error('Errore caricamento prodotto:', error)
         toast.error("Errore nel caricamento delle informazioni di pagamento")
@@ -178,18 +178,44 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (practiceError) throw practiceError
 
-      // Costruisci l'URL di EasyCommerce per il pagamento
-      const easyCommerceUrl = new URL('https://uniupo.temposrl.it/easycommerce/api/authshop')
-      
-      // Aggiungi i parametri del percorso
-      easyCommerceUrl.pathname += `/${productDetails.categoryId}/${productDetails.productId}/1`
+      // Prepara i dati per la richiesta di pagamento
+      const paymentData = {
+        Email: user.email,
+        Residence: 0, // Italia
+        CfSituation: 1, // Con CF Italiano
+        CF: practice.employee_fiscal_code,
+        Name: practice.employee_name,
+        Surname: practice.employee_surname,
+        Address: practice.employee_address || "",
+        City: practice.employee_city || "",
+        Location: practice.employee_location || "",
+        Cap: practice.employee_postal_code || "",
+        Birthdate: practice.employee_birth_date,
+        Gender: practice.employee_gender === 'male' ? 'M' : 'F',
+        Phone: practice.employee_phone || "",
+        Born: 0, // Italia
+        BornCity: practice.employee_birth_place || "",
+      }
 
-      // Aggiungi i parametri di query
-      const searchParams = new URLSearchParams({
-        returnUrl: `${window.location.origin}/dashboard/user/nuova-pratica/payment-callback`,
-        practiceId: practice.id
+      // Invia la richiesta al nostro endpoint
+      const response = await fetch('/api/payment/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentData,
+          practiceId: practice.id,
+          categoryId: productDetails.categoryId,
+          productId: productDetails.productId
+        })
       })
-      easyCommerceUrl.search = searchParams.toString()
+
+      if (!response.ok) {
+        throw new Error('Errore durante l\'avvio del pagamento')
+      }
+
+      const { redirectUrl } = await response.json()
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
@@ -202,8 +228,8 @@ export default function Step4Payment({ formData, setFormData }: Props) {
 
       if (updateError) throw updateError
 
-      // Redirect a EasyCommerce
-      window.location.href = easyCommerceUrl.toString()
+      // Redirect all'URL di pagamento
+      window.location.href = redirectUrl
 
     } catch (error: any) {
       console.error('Errore durante l\'avvio del pagamento:', error)
