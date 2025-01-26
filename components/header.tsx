@@ -2,8 +2,8 @@
 
 import { Bell } from "lucide-react"
 import { Button } from "./ui/button"
-import { createClientComponentClient } from '@/lib/supabase'
 import { useRouter } from "next/navigation"
+import { supabase } from '@/lib/supabase'
 
 interface HeaderProps {
   notifications: any[]
@@ -14,7 +14,6 @@ interface HeaderProps {
 
 export function Header({ notifications, showNotifications, setShowNotifications, user }: HeaderProps) {
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

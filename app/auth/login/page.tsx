@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Loader2, CreditCard } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 const loginSchema = z.object({
   email: z.string().email("Email non valida"),
@@ -35,7 +35,6 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -49,33 +48,74 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormData) {
     try {
       setIsLoading(true)
-      console.log('Tentativo di login con:', data.email)
       
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
-      if (error) {
-        throw error
+      if (error) throw error
+
+      if (!authData?.user) {
+        throw new Error('Utente non trovato')
       }
 
-      if (authData?.user) {
-        console.log('Login effettuato come:', authData.user.email)
+      console.log('User ID:', authData.user.id)
 
-        if (authData.user.email === 'francescocro76@gmail.com') {
-          console.log('Reindirizzamento admin')
-          await router.push('/dashboard/admin')
-        } else {
-          console.log('Reindirizzamento user')
-          await router.push('/dashboard/user')
+      // Query per il profilo specifico
+      let { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+
+      console.log('Query risultato iniziale:', userProfile)
+
+      // Se il profilo non esiste, crealo
+      if (!userProfile || userProfile.length === 0) {
+        console.log('Creazione nuovo profilo per:', authData.user.id)
+        
+        // Determina il ruolo in base all'email
+        const isAdmin = authData.user.email === 'admin@example.com' // sostituisci con la tua email admin
+        const role = isAdmin ? 'admin' : 'user'
+
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              user_id: authData.user.id,
+              role: role,
+              username: authData.user.email?.split('@')[0] || 'user',
+              updated_at: new Date().toISOString()
+            }
+          ])
+          .select()
+
+        if (insertError) {
+          console.error('Errore creazione profilo:', insertError)
+          throw insertError
         }
+
+        userProfile = newProfile
+        console.log('Nuovo profilo creato:', newProfile)
       }
+
+      const role = userProfile[0].role
+      console.log('Ruolo finale:', role)
+
+      // Reindirizza in base al ruolo
+      if (role === 'admin') {
+        console.log('Reindirizzamento a dashboard admin')
+        window.location.href = '/admin/dashboard'
+      } else {
+        console.log('Reindirizzamento a dashboard utente')
+        window.location.href = '/dashboard'
+      }
+
+      toast.success('Accesso effettuato con successo')
       
     } catch (error: any) {
-      console.error('Error:', error.message)
-      toast.error('Credenziali non valide')
-    } finally {
+      console.error('Errore completo:', error)
+      toast.error(error.message || 'Errore durante l\'accesso')
       setIsLoading(false)
     }
   }

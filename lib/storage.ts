@@ -1,7 +1,6 @@
-import { createClientComponentClient } from './supabase'
+import { supabase } from './supabase'
 
 export async function uploadDocument(file: File, documentId: string, versionType: 'original' | 'signed') {
-  const supabase = createClientComponentClient()
   const fileExt = file.name.split('.').pop()
   const fileName = `${documentId}/${versionType}-${Date.now()}.${fileExt}`
   
@@ -28,7 +27,7 @@ export async function uploadPdf(file: File, path: string) {
 }
 
 export function getPdfUrl(path: string) {
-  const { data: { publicUrl } } = createClientComponentClient().storage
+  const { data: { publicUrl } } = supabase.storage
     .from('documents')
     .getPublicUrl(path)
   return publicUrl
