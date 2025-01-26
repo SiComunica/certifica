@@ -85,10 +85,7 @@ export default function LoginPage() {
 
     } catch (error) {
       console.error('Errore completo:', error)
-      toast({
-        description: "Errore durante il login. Riprova.",
-        variant: "error"
-      })
+      toast("Errore durante il login. Riprova.")
     } finally {
       setIsLoading(false)
     }
