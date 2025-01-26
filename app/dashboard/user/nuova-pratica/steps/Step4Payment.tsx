@@ -139,11 +139,22 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utente non autenticato")
 
+      // Ottieni i dati della pratica per il codice fiscale
+      const { data: practice, error: practiceError } = await supabase
+        .from('practices')
+        .select('*')
+        .eq('id', formData.practiceId)
+        .single()
+
+      if (practiceError || !practice) {
+        throw new Error('Pratica non trovata')
+      }
+
       // Prepara i dati per EasyCommerce
       const paymentData = {
-        Name: formData.employeeName,
-        Surname: formData.employeeSurname,
-        CF: formData.employeeFiscalCode,
+        Name: formData.employeeName?.split(' ')[0] || '',
+        Surname: formData.employeeName?.split(' ').slice(1).join(' ') || '',
+        CF: practice.fiscal_code || practice.employee_fiscal_code,
         Email: user.email || '',
         Amount: Math.round(finalTotal * 100), // Converti in centesimi
         ContractType: formData.contractTypeName,
