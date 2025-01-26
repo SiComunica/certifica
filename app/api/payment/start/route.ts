@@ -1,29 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Inizializza il client Supabase con gestione errori
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-console.log('Debug variabili ambiente:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey,
-  envKeys: Object.keys(process.env)
-})
-
 // Inizializza il client Supabase
 const supabase = createClient(
-  supabaseUrl || '',
-  supabaseKey || ''
+  'https://tviiynqkosrflhffouwj.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2aWl5bnFrb3NyZmxoZmZvdXdqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNTU1ODA4MywiZXhwIjoyMDUxMTM0MDgzfQ.3P2_oBD_X0A1xv8IE5lHqub7RS2gW09aLMtBmLa09kQ'
 )
 
 export async function POST(request: Request) {
   try {
-    // Verifica le credenziali all'inizio della richiesta
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error(`Configurazione Supabase incompleta: URL=${!!supabaseUrl}, Key=${!!supabaseKey}`)
-    }
-
     const data = await request.json()
     console.log('Dati ricevuti:', data)
 
