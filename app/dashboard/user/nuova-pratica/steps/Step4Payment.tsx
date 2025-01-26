@@ -139,16 +139,18 @@ export default function Step4Payment({ formData, setFormData }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utente non autenticato")
 
-      // Prepara i dati per la richiesta di pagamento
+      // Prepara i dati per EasyCommerce
       const paymentData = {
-        Email: user.email || '',
         Name: formData.employeeName,
         Surname: formData.employeeSurname,
         CF: formData.employeeFiscalCode,
-        Amount: Math.round(finalTotal * 100) // Converti in centesimi
+        Email: user.email || '',
+        Amount: Math.round(finalTotal * 100), // Converti in centesimi
+        ContractType: formData.contractTypeName,
+        PracticeId: formData.practiceId
       }
 
-      console.log('Dati pagamento:', paymentData)
+      console.log('Invio dati pagamento:', paymentData)
 
       // Invia la richiesta al nostro endpoint
       const response = await fetch('/api/payment/start', {
@@ -156,37 +158,37 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          paymentData,
-          practiceId: formData.practiceId
-        })
+        body: JSON.stringify(paymentData)
       })
 
-      const responseData = await response.json()
-
       if (!response.ok) {
-        throw new Error(responseData.details || 'Errore durante l\'avvio del pagamento')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Errore durante l\'avvio del pagamento')
       }
+
+      const { redirectUrl } = await response.json()
 
       // Aggiorna lo stato della pratica
       const { error: updateError } = await supabase
         .from('practices')
         .update({
+          status: 'payment_pending',
           payment_started_at: new Date().toISOString(),
-          payment_status: 'pending',
           payment_amount: finalTotal,
-          convention_code: appliedConvention?.code
+          convention_code: appliedConvention?.code || null,
+          convention_discount: appliedConvention?.discount || null,
+          updated_at: new Date().toISOString()
         })
         .eq('id', formData.practiceId)
 
       if (updateError) throw updateError
 
-      // Redirect all'URL di pagamento
-      window.location.href = responseData.redirectUrl
+      // Redirect alla pagina di pagamento di EasyCommerce
+      window.location.href = redirectUrl
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Errore:', error)
-      toast.error("Errore durante l'avvio del pagamento")
+      toast.error(error.message || "Errore durante l'avvio del pagamento")
       setIsProcessing(false)
     }
   }

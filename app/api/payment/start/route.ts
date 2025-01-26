@@ -1,67 +1,91 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+// Inizializza il client Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: Request) {
   try {
-    const { paymentData, practiceId } = await request.json()
+    const data = await request.json()
+    console.log('Dati ricevuti:', data)
 
-    console.log('Dati ricevuti:', { paymentData, practiceId })
+    // Verifica dati necessari
+    if (!data.Name || !data.Surname || !data.CF || !data.Email || !data.Amount) {
+      throw new Error('Dati mancanti nella richiesta')
+    }
 
-    // Costruisci l'oggetto Acquisto come specificato nell'XSD
-    const acquisto = {
+    // Prepara la richiesta per EasyCommerce
+    const easyCommerceRequest = {
       Acquisto: {
-        nomecognome: `${paymentData.Name} ${paymentData.Surname}`.trim(),
-        codicefiscale: paymentData.CF,
-        email: paymentData.Email,
+        nomecognome: `${data.Name} ${data.Surname}`,
+        codicefiscale: data.CF,
+        email: data.Email,
+        importo: data.Amount,
         codiceprodotto: "CERT_CONTR",
-        prezzo: 10000 // 100 euro in centesimi
+        causale: `Certificazione contratto di lavoro - ${data.ContractType}`
       }
     }
 
-    console.log('Richiesta a EasyCommerce:', acquisto)
+    console.log('Richiesta a EasyCommerce:', easyCommerceRequest)
 
-    const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(acquisto)
-    })
+    // Chiamata a EasyCommerce
+    const easyResponse = await fetch(
+      'https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(easyCommerceRequest)
+      }
+    )
 
-    console.log('Status risposta:', response.status)
-    const responseText = await response.text()
-    console.log('Risposta EasyCommerce:', responseText)
-
-    if (!response.ok) {
-      throw new Error(`Errore EasyCommerce: ${responseText}`)
+    if (!easyResponse.ok) {
+      const errorText = await easyResponse.text()
+      console.error('Errore EasyCommerce:', errorText)
+      throw new Error(`Errore nella generazione dell'avviso: ${errorText}`)
     }
 
-    let data
-    try {
-      data = JSON.parse(responseText)
-    } catch (e) {
-      console.error('Errore parsing JSON:', e)
-      throw new Error('Risposta non valida da EasyCommerce')
-    }
+    const easyData = await easyResponse.json()
+    console.log('Risposta EasyCommerce:', easyData)
 
-    if (!data.codiceavviso) {
+    if (!easyData.codiceavviso) {
       throw new Error('Codice avviso mancante nella risposta')
     }
-    
-    const redirectUrl = `https://uniupo.temposrl.it/easycommerce/Payment?numeroAvviso=${data.codiceavviso}&returnUrl=${encodeURIComponent(
-      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/user/nuova-pratica/payment-callback?practiceId=${practiceId}`
+
+    // Aggiorna la pratica con il codice IUV
+    const { error: updateError } = await supabase
+      .from('practices')
+      .update({
+        payment_iuv: easyData.codiceavviso,
+        payment_status: 'pending',
+        payment_started_at: new Date().toISOString(),
+        status: 'payment_pending'
+      })
+      .eq('id', data.PracticeId)
+
+    if (updateError) {
+      console.error('Errore aggiornamento pratica:', updateError)
+      throw new Error('Errore nel salvataggio del codice IUV')
+    }
+
+    // Costruisci l'URL di redirect con returnUrl
+    const redirectUrl = `https://uniupo.temposrl.it/easycommerce/Payment/Show/${easyData.codiceavviso}?returnUrl=${encodeURIComponent(
+      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/user/payment-result?practiceId=${data.PracticeId}`
     )}`
 
-    console.log('URL di redirect:', redirectUrl)
-
     return NextResponse.json({ redirectUrl })
+
   } catch (error: any) {
     console.error('Errore dettagliato:', error)
     return NextResponse.json(
       { 
         error: 'Errore durante l\'avvio del pagamento',
-        details: error.message,
-        stack: error.stack
+        details: error.message 
       }, 
       { status: 500 }
     )
