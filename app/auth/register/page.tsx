@@ -40,25 +40,22 @@ export default function Register() {
         throw new Error("Le password non coincidono")
       }
 
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            company: formData.company,
-            vat_number: formData.vatNumber,
-            fiscal_code: formData.fiscalCode,
-            address: formData.address,
-            city: formData.city,
-            province: formData.province,
-            postal_code: formData.postalCode,
-          }
-        }
       })
 
       if (signUpError) throw signUpError
+
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: authData.user.id,
+            username: formData.email,
+            role: 'user'  // tutti i nuovi utenti sono 'user' di default
+          })
+      }
 
       toast.success("Registrazione completata! Controlla la tua email per confermare l'account.")
       router.push('/auth/login')

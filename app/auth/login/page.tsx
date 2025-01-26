@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Loader2, CreditCard } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase"
 
 const loginSchema = z.object({
@@ -87,7 +87,7 @@ export default function LoginPage() {
       console.error('Errore completo:', error)
       toast({
         description: "Errore durante il login. Riprova.",
-        variant: "destructive",
+        variant: "error"
       })
     } finally {
       setIsLoading(false)
