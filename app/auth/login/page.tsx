@@ -50,82 +50,46 @@ export default function LoginPage() {
       setIsLoading(true)
       console.log('Tentativo di login con:', data.email)
       
-      // Log delle variabili d'ambiente
-      console.log('URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-      console.log('Key (primi 10 char):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 10))
-      
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
       if (error) {
-        console.error('Errore completo:', error)
+        console.error('Errore auth:', error)
         throw error
       }
 
       console.log('Login riuscito:', authData)
 
-      if (!authData?.user) {
-        throw new Error('Utente non trovato')
-      }
-
-      console.log('User ID:', authData.user.id)
-
-      // Query per il profilo specifico
-      let { data: userProfile, error: profileError } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('role')
+        .select()
         .eq('user_id', authData.user.id)
+        .single()
 
-      console.log('Query risultato iniziale:', userProfile)
-
-      // Se il profilo non esiste, crealo
-      if (!userProfile || userProfile.length === 0) {
-        console.log('Creazione nuovo profilo per:', authData.user.id)
-        
-        // Determina il ruolo in base all'email
-        const isAdmin = authData.user.email === 'admin@example.com' // sostituisci con la tua email admin
-        const role = isAdmin ? 'admin' : 'user'
-
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              user_id: authData.user.id,
-              role: role,
-              username: authData.user.email?.split('@')[0] || 'user',
-              updated_at: new Date().toISOString()
-            }
-          ])
-          .select()
-
-        if (insertError) {
-          console.error('Errore creazione profilo:', insertError)
-          throw insertError
-        }
-
-        userProfile = newProfile
-        console.log('Nuovo profilo creato:', newProfile)
+      if (profileError) {
+        console.error('Errore profilo:', profileError)
+        throw profileError
       }
 
-      const role = userProfile[0].role
-      console.log('Ruolo finale:', role)
+      console.log('Profilo trovato:', userProfile)
 
-      // Reindirizza in base al ruolo
-      if (role === 'admin') {
-        console.log('Reindirizzamento a dashboard admin')
-        window.location.href = '/admin/dashboard'
+      if (userProfile?.role === 'admin') {
+        console.log('Reindirizzamento a /admin/dashboard')
+        router.push('/admin/dashboard')
       } else {
-        console.log('Reindirizzamento a dashboard utente')
-        window.location.href = '/dashboard'
+        console.log('Reindirizzamento a /dashboard') 
+        router.push('/dashboard')
       }
 
-      toast.success('Accesso effettuato con successo')
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error('Errore completo:', error)
-      toast.error(error.message || 'Errore durante l\'accesso')
+      toast({
+        description: "Errore durante il login. Riprova.",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
     }
   }

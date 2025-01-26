@@ -1,49 +1,60 @@
 import { supabase } from './supabase'
-import { Company, Employee, CertificationRequest, Document } from './types'
+import { Company, Employee, CertificationRequest, Document, CompanyInsert, EmployeeInsert, CertificationRequestInsert, DocumentInsert } from '@/types/entities'
 
-export async function getCompanyData(userId: string) {
-  const { data: company, error } = await supabase
+export async function getCompanyByUserId(userId: string): Promise<Company | null> {
+  const { data } = await supabase
     .from('companies')
-    .select('*')
+    .select()
     .eq('user_id', userId)
     .single()
-
-  if (error) throw error
-  return company as Company
+  return data
 }
 
-export async function getEmployees(companyId: string) {
-  const { data: employees, error } = await supabase
+export async function getEmployeesByCompanyId(companyId: string): Promise<Employee[]> {
+  const { data } = await supabase
     .from('employees')
-    .select('*')
+    .select()
     .eq('company_id', companyId)
-
-  if (error) throw error
-  return employees as Employee[]
+  return data || []
 }
 
-export async function getCertificationRequests(companyId: string) {
-  const { data: requests, error } = await supabase
+export async function getCertificationRequestsByCompanyId(
+  companyId: string
+): Promise<(CertificationRequest & {
+  employees: { first_name: string; last_name: string }
+  documents: { id: string; file_name: string }[]
+})[]> {
+  const { data } = await supabase
     .from('certification_requests')
     .select(`
       *,
-      employees (
-        first_name,
-        last_name
-      ),
-      documents (
-        id,
-        file_name
-      )
+      employees (first_name, last_name),
+      documents (id, file_name)
     `)
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false })
+  return data || []
+}
 
-  if (error) throw error
-  return requests as (CertificationRequest & {
-    employees: { first_name: string; last_name: string }
-    documents: { id: string; file_name: string }[]
-  })[]
+export async function createCertificationRequests(
+  requests: CertificationRequestInsert[]
+): Promise<CertificationRequest | null> {
+  const { data } = await supabase
+    .from('certification_requests')
+    .insert(requests)
+    .select()
+    .single()
+  return data
+}
+
+export async function createDocuments(
+  documents: DocumentInsert[]
+): Promise<Document | null> {
+  const { data } = await supabase
+    .from('documents')
+    .insert(documents)
+    .select()
+    .single()
+  return data
 }
 
 export async function getStatistics(companyId: string) {
@@ -54,17 +65,6 @@ export async function getStatistics(companyId: string) {
 
   if (error) throw error
   return data
-}
-
-export async function createCertificationRequest(request: Partial<CertificationRequest>) {
-  const { data, error } = await supabase
-    .from('certification_requests')
-    .insert([request])
-    .select()
-    .single()
-
-  if (error) throw error
-  return data as CertificationRequest
 }
 
 export async function uploadDocument(file: File, certificationRequestId: string) {
