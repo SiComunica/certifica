@@ -12,12 +12,13 @@ import { AlertDialog } from "@/components/ui/alert-dialog"
 import PracticesManagement from "./components/PracticesManagement"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { createClientComponentClient } from '@/lib/supabase'
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("templates")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const handleLogout = async () => {
     try {
