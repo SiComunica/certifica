@@ -48,13 +48,23 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormData) {
     try {
       setIsLoading(true)
+      console.log('Tentativo di login con:', data.email)
+      
+      // Log delle variabili d'ambiente
+      console.log('URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      console.log('Key (primi 10 char):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 10))
       
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Errore completo:', error)
+        throw error
+      }
+
+      console.log('Login riuscito:', authData)
 
       if (!authData?.user) {
         throw new Error('Utente non trovato')
@@ -173,6 +183,7 @@ export default function LoginPage() {
                             type="password" 
                             placeholder="Inserisci la password" 
                             {...field} 
+                            autoComplete="current-password"
                           />
                         </FormControl>
                         <FormMessage />
