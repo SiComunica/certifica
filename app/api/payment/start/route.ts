@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Verifica e usa le variabili d'ambiente
+// Inizializza il client Supabase con gestione errori
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Variabili ambiente Supabase mancanti')
-}
+console.log('Debug variabili ambiente:', {
+  hasUrl: !!supabaseUrl,
+  hasKey: !!supabaseKey,
+  envKeys: Object.keys(process.env)
+})
 
 // Inizializza il client Supabase
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(
+  supabaseUrl || '',
+  supabaseKey || ''
+)
 
 export async function POST(request: Request) {
   try {
+    // Verifica le credenziali all'inizio della richiesta
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(`Configurazione Supabase incompleta: URL=${!!supabaseUrl}, Key=${!!supabaseKey}`)
+    }
+
     const data = await request.json()
     console.log('Dati ricevuti:', data)
 
