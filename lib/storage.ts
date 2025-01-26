@@ -1,11 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+import { createClientComponentClient } from './supabase'
 
 export async function uploadDocument(file: File, documentId: string, versionType: 'original' | 'signed') {
+  const supabase = createClientComponentClient()
   const fileExt = file.name.split('.').pop()
   const fileName = `${documentId}/${versionType}-${Date.now()}.${fileExt}`
   
@@ -32,7 +28,7 @@ export async function uploadPdf(file: File, path: string) {
 }
 
 export function getPdfUrl(path: string) {
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = createClientComponentClient().storage
     .from('documents')
     .getPublicUrl(path)
   return publicUrl

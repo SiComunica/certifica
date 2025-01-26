@@ -1,7 +1,8 @@
-import { supabase } from './supabase'
+import { createClientComponentClient } from './supabase'
 import { Company, Employee, CertificationRequest, Document } from './types'
 
 export async function getCompanyData(userId: string) {
+  const supabase = createClientComponentClient()
   const { data: company, error } = await supabase
     .from('companies')
     .select('*')
@@ -13,6 +14,7 @@ export async function getCompanyData(userId: string) {
 }
 
 export async function getEmployees(companyId: string) {
+  const supabase = createClientComponentClient()
   const { data: employees, error } = await supabase
     .from('employees')
     .select('*')
@@ -23,6 +25,7 @@ export async function getEmployees(companyId: string) {
 }
 
 export async function getCertificationRequests(companyId: string) {
+  const supabase = createClientComponentClient()
   const { data: requests, error } = await supabase
     .from('certification_requests')
     .select(`
@@ -47,6 +50,7 @@ export async function getCertificationRequests(companyId: string) {
 }
 
 export async function getStatistics(companyId: string) {
+  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .rpc('get_certification_statistics', {
       company_id: companyId
@@ -57,6 +61,7 @@ export async function getStatistics(companyId: string) {
 }
 
 export async function createCertificationRequest(request: Partial<CertificationRequest>) {
+  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('certification_requests')
     .insert([request])
@@ -68,6 +73,7 @@ export async function createCertificationRequest(request: Partial<CertificationR
 }
 
 export async function uploadDocument(file: File, certificationRequestId: string) {
+  const supabase = createClientComponentClient()
   const fileName = `${certificationRequestId}/${file.name}`
   
   // Upload file to storage
