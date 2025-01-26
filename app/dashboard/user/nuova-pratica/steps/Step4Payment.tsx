@@ -134,19 +134,24 @@ export default function Step4Payment({ formData, setFormData }: Props) {
   const handlePayment = async () => {
     try {
       setIsProcessing(true)
+      console.log('Inizio pagamento per pratica:', formData.practiceId)
 
       // Ottieni l'utente corrente
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utente non autenticato")
 
-      // Ottieni i dati della pratica per il codice fiscale
+      // Debug log per verificare i dati della pratica
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .select('*')
         .eq('id', formData.practiceId)
         .single()
 
+      console.log('Dati pratica trovati:', practice)
+      console.log('Errore ricerca pratica:', practiceError)
+
       if (practiceError || !practice) {
+        console.error('Errore recupero pratica:', practiceError)
         throw new Error('Pratica non trovata')
       }
 
@@ -156,12 +161,12 @@ export default function Step4Payment({ formData, setFormData }: Props) {
         Surname: formData.employeeName?.split(' ').slice(1).join(' ') || '',
         CF: practice.fiscal_code || practice.employee_fiscal_code,
         Email: user.email || '',
-        Amount: Math.round(finalTotal * 100), // Converti in centesimi
+        Amount: Math.round(finalTotal * 100),
         ContractType: formData.contractTypeName,
         PracticeId: formData.practiceId
       }
 
-      console.log('Invio dati pagamento:', paymentData)
+      console.log('Dati pagamento:', paymentData)
 
       // Invia la richiesta al nostro endpoint
       const response = await fetch('/api/payment/start', {
