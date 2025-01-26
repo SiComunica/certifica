@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Loader2, CheckCircle2, XCircle } from "lucide-react"
 
-export default function PaymentResult() {
+function PaymentResultContent() {
   const searchParams = useSearchParams()
   const practiceId = searchParams.get('practiceId')
   const esito = searchParams.get('esito')
@@ -162,5 +162,13 @@ export default function PaymentResult() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function PaymentResultPage() {
+  return (
+    <Suspense fallback={<div>Caricamento risultato pagamento...</div>}>
+      <PaymentResultContent />
+    </Suspense>
   )
 } 
