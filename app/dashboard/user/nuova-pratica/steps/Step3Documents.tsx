@@ -102,11 +102,11 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
   }
 
   const handleSubmit = () => {
-    // Verifica che tutti i documenti siano stati caricati
-    const allUploaded = templates.every(t => uploadedDocs[t.id])
+    // Verifica che almeno un documento sia stato caricato
+    const hasAtLeastOneDocument = Object.keys(uploadedDocs).length > 0
     
-    if (!allUploaded) {
-      toast.error("Carica tutti i documenti richiesti")
+    if (!hasAtLeastOneDocument) {
+      toast.error("Carica almeno un documento prima di procedere")
       return
     }
 
@@ -165,10 +165,19 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
         <Button variant="outline" onClick={onBack}>
           Indietro
         </Button>
-        <Button onClick={handleSubmit}>
+        <Button 
+          onClick={handleSubmit}
+          disabled={Object.keys(uploadedDocs).length === 0}
+        >
           Avanti
         </Button>
       </div>
+
+      {Object.keys(uploadedDocs).length === 0 && (
+        <p className="text-sm text-yellow-600 text-center">
+          Carica almeno un documento per procedere
+        </p>
+      )}
     </div>
   )
 } 
