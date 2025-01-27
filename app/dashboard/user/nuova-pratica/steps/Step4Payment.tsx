@@ -21,6 +21,10 @@ interface Props {
     contractTypeName: string
     practiceId: string
     email?: string
+    conventionCode?: string
+    conventionDiscount?: number
+    documents?: Record<string, string>
+    finalPrice: number
   }
   onSubmit: (data: any) => void
   onBack: () => void
@@ -120,60 +124,55 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">Riepilogo Pratica</h2>
-        <div className="space-y-2">
-          <p><strong>Dipendente:</strong> {formData.employeeName}</p>
-          <p><strong>Tipo Contratto:</strong> {formData.contractTypeName}</p>
-          <p><strong>Quantità:</strong> {formData.quantity}</p>
-          {formData.isOdcec && <p>Convenzione ODCEC applicata</p>}
-          {formData.isRenewal && <p>Tariffa rinnovo applicata</p>}
-          
-          {/* Sezione Codice Convenzione */}
-          <div className="mt-4 space-y-2">
-            <Label htmlFor="conventionCode">Codice Convenzione</Label>
-            <div className="flex gap-2">
-              <Input
-                id="conventionCode"
-                value={conventioneCode}
-                onChange={(e) => setConventioneCode(e.target.value)}
-                placeholder="Inserisci il codice convenzione"
-                disabled={discountApplied || isLoading}
-              />
-              <Button 
-                onClick={verifyConventionCode}
-                disabled={!conventioneCode || discountApplied || isLoading}
-                variant="secondary"
-              >
-                Verifica
-              </Button>
-            </div>
-            {discountApplied && (
-              <p className="text-green-600 text-sm">
-                Sconto convenzione applicato
+        
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium">Dipendente</h3>
+            <p>{formData.employeeName}</p>
+            <p className="text-sm text-gray-600">{formData.fiscalCode}</p>
+          </div>
+
+          <div>
+            <h3 className="font-medium">Contratto</h3>
+            <p>{formData.contractTypeName}</p>
+            {formData.contractValue > 0 && (
+              <p className="text-sm text-gray-600">
+                Valore: €{formData.contractValue.toFixed(2)}
               </p>
             )}
           </div>
 
-          <p className="text-xl font-bold mt-4">Totale: €{finalPrice.toFixed(2)}</p>
+          {formData.conventionCode && (
+            <div>
+              <h3 className="font-medium">Convenzione Applicata</h3>
+              <p>Sconto del {formData.conventionDiscount}%</p>
+            </div>
+          )}
 
-          <div className="mt-4 p-4 bg-yellow-50 rounded-md">
-            <p className="text-sm text-yellow-800">
-              Dopo aver effettuato il pagamento sulla piattaforma dell'università, 
-              torna nella sezione "Le mie pratiche" per caricare la fattura ricevuta 
-              e completare l'invio della pratica alla commissione.
-            </p>
+          <div>
+            <h3 className="font-medium">Documenti Allegati</h3>
+            <ul className="list-disc list-inside text-sm text-gray-600">
+              {Object.entries(formData.documents || {}).map(([id, fileName]) => (
+                <li key={id}>{fileName.toString().split('/').pop()}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="pt-4 border-t">
+            <h3 className="font-medium">Totale da Pagare</h3>
+            <p className="text-2xl font-bold">€{formData.finalPrice.toFixed(2)}</p>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>Indietro</Button>
-        <Button 
-          onClick={handlePayment}
-          disabled={isLoading}
-        >
-          {isLoading ? "Elaborazione..." : "Procedi al Pagamento"}
+        <Button variant="outline" onClick={onBack}>
+          Indietro
+        </Button>
+        <Button onClick={() => onSubmit(formData)}>
+          Procedi al Pagamento
         </Button>
       </div>
     </div>

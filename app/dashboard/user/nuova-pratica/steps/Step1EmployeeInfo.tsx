@@ -27,6 +27,14 @@ interface PriceRange {
   is_renewal: boolean
 }
 
+interface Convention {
+  id: string
+  code: string
+  discount_percentage: number
+  description: string
+  is_active: boolean
+}
+
 interface Props {
   formData: any
   onSubmit: (data: any) => void
@@ -35,13 +43,14 @@ interface Props {
 export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [contractTypes, setContractTypes] = useState<ContractType[]>([])
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([])
+  const [conventions, setConventions] = useState<Convention[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [form, setForm] = useState({
     employeeName: formData.employeeName || "",
     fiscalCode: formData.fiscalCode || "",
     contractType: formData.contractType || "",
     contractValue: formData.contractValue || 0,
-    isOdcec: formData.isOdcec || false,
+    conventionCode: formData.conventionCode || "",
     isRenewal: formData.isRenewal || false,
     quantity: formData.quantity || 1,
   })
@@ -49,16 +58,15 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    loadContractTypes()
+    loadInitialData()
   }, [])
 
-  const loadContractTypes = async () => {
+  const loadInitialData = async () => {
     try {
-      // Carica tipi di contratto
+      // Carica tipi contratto
       const { data: types, error: typesError } = await supabase
         .from('contract_types')
         .select('*')
-      
       if (typesError) throw typesError
       setContractTypes(types)
 
@@ -66,12 +74,19 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
       const { data: prices, error: pricesError } = await supabase
         .from('price_ranges')
         .select('*')
-      
       if (pricesError) throw pricesError
       setPriceRanges(prices)
+
+      // Carica convenzioni attive
+      const { data: activeConventions, error: conventionsError } = await supabase
+        .from('conventions')
+        .select('*')
+        .eq('is_active', true)
+      if (conventionsError) throw conventionsError
+      setConventions(activeConventions)
     } catch (error) {
-      console.error('Errore caricamento contratti:', error)
-      toast.error("Errore nel caricamento dei tipi di contratto")
+      console.error('Errore caricamento dati:', error)
+      toast.error("Errore nel caricamento dei dati")
     } finally {
       setIsLoading(false)
     }
@@ -80,7 +95,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const calculatePrice = (contractTypeId: string, value: number = 0) => {
     const priceRange = priceRanges.find(p => 
       p.contract_type_id === parseInt(contractTypeId) &&
-      p.is_odcec === form.isOdcec &&
       p.is_renewal === form.isRenewal
     )
 
@@ -88,14 +102,21 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
     let price = priceRange.base_price
     
-    // Se è un contratto a valore aggiunto, calcola l'1.5%
+    // Calcola 1.5% sul valore aggiunto se presente
     const selectedContract = contractTypes.find(c => c.id === parseInt(contractTypeId))
     if (selectedContract?.requires_value && value > 0) {
       const additionalValue = value * 0.015 // 1.5%
       price += additionalValue
     }
 
-    return price * form.quantity
+    // Applica sconto convenzione se presente
+    const selectedConvention = conventions.find(c => c.code === form.conventionCode)
+    if (selectedConvention) {
+      const discount = price * (selectedConvention.discount_percentage / 100)
+      price -= discount
+    }
+
+    return price
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -107,12 +128,19 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     }
 
     const selectedContract = contractTypes.find(c => c.id === parseInt(form.contractType))
+    if (selectedContract?.requires_value && !form.contractValue) {
+      toast.error("Inserisci il valore del contratto")
+      return
+    }
+
     const finalPrice = calculatePrice(form.contractType, form.contractValue)
+    const selectedConvention = conventions.find(c => c.code === form.conventionCode)
 
     onSubmit({
       ...form,
       contractTypeName: selectedContract?.name,
-      finalPrice
+      finalPrice,
+      conventionDiscount: selectedConvention?.discount_percentage || 0
     })
   }
 
@@ -176,12 +204,13 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             <Input
               id="contractValue"
               type="number"
-              value={form.contractValue}
+              value={form.contractValue || ''}
               onChange={(e) => setForm({ 
                 ...form, 
                 contractValue: parseFloat(e.target.value) || 0 
               })}
               placeholder="Inserisci il valore del contratto"
+              required
               className="mt-1"
             />
             <p className="text-sm text-gray-500 mt-1">
@@ -202,14 +231,24 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           />
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="isOdcec"
-            checked={form.isOdcec}
-            onCheckedChange={handleCheckedChange('isOdcec')}
-          />
-          <Label htmlFor="isOdcec">Convenzione ODCEC</Label>
-        </div>
+        {conventions.length > 0 && (
+          <div>
+            <Label htmlFor="convention">Convenzione</Label>
+            <select
+              id="convention"
+              value={form.conventionCode}
+              onChange={(e) => setForm({ ...form, conventionCode: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            >
+              <option value="">Nessuna convenzione</option>
+              {conventions.map((convention) => (
+                <option key={convention.id} value={convention.code}>
+                  {convention.description} ({convention.discount_percentage}% sconto)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex items-center space-x-2">
           <Switch
@@ -221,16 +260,18 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
         </div>
 
         {form.contractType && (
-          <div className="p-4 bg-gray-50 rounded-md">
+          <div className="p-4 bg-gray-50 rounded-md space-y-2">
             <p className="text-lg font-semibold">
               Prezzo Calcolato: €{calculatePrice(form.contractType, form.contractValue).toFixed(2)}
             </p>
-            {contractTypes.find(c => 
-              c.id === parseInt(form.contractType) && 
-              c.requires_value
-            ) && form.contractValue > 0 && (
-              <p className="text-sm text-gray-600 mt-1">
+            {form.contractValue > 0 && (
+              <p className="text-sm text-gray-600">
                 Include 1.5% su €{form.contractValue.toFixed(2)}: €{(form.contractValue * 0.015).toFixed(2)}
+              </p>
+            )}
+            {form.conventionCode && (
+              <p className="text-sm text-gray-600">
+                Sconto convenzione: {conventions.find(c => c.code === form.conventionCode)?.discount_percentage}%
               </p>
             )}
           </div>
