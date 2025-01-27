@@ -1,53 +1,137 @@
-import * as React from "react"
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+"use client"
 
-export default function FileUpload() {
-  const [uploading, setUploading] = useState(false)
+import { useState, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
-  const uploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+interface Props {
+  practiceId: string
+  onUploadComplete: () => void
+  acceptedFileTypes?: string[]
+  maxSize?: number // in bytes
+}
+
+export function FileUpload({ 
+  practiceId, 
+  onUploadComplete, 
+  acceptedFileTypes = ['.pdf'], 
+  maxSize = 5 * 1024 * 1024 
+}: Props) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClientComponentClient()
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const validateFile = (file: File) => {
+    if (maxSize && file.size > maxSize) {
+      toast.error(`File troppo grande. Dimensione massima: ${maxSize / 1024 / 1024}MB`)
+      return false
+    }
+
+    const fileType = `.${file.name.split('.').pop()?.toLowerCase()}`
+    if (!acceptedFileTypes.includes(fileType)) {
+      toast.error(`Tipo file non supportato. Tipi accettati: ${acceptedFileTypes.join(', ')}`)
+      return false
+    }
+
+    return true
+  }
+
+  const handleUpload = async (file: File) => {
     try {
-      setUploading(true)
+      setIsLoading(true)
 
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('Devi selezionare un file da caricare')
-      }
-
-      const file = event.target.files[0]
+      // Creiamo il nome del file con l'ID della pratica
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `${fileName}`
+      const fileName = `${practiceId}-receipt.${fileExt}`
 
+      // Upload del file
       const { error: uploadError } = await supabase.storage
-        .from('files')
-        .upload(filePath, file)
+        .from('receipts')
+        .upload(fileName, file, { upsert: true })
 
-      if (uploadError) {
-        throw uploadError
-      }
+      if (uploadError) throw uploadError
 
-      alert('File caricato con successo!')
+      // Aggiorniamo la pratica
+      const { error: updateError } = await supabase
+        .from('practices')
+        .update({ 
+          payment_receipt: fileName,
+          status: 'payment_verified'
+        })
+        .eq('id', practiceId)
+
+      if (updateError) throw updateError
+
+      toast.success("Fattura caricata con successo")
+      onUploadComplete()
     } catch (error) {
-      alert('Errore durante il caricamento del file')
-      console.log(error)
+      console.error('Errore upload:', error)
+      toast.error("Errore nel caricamento della fattura")
     } finally {
-      setUploading(false)
+      setIsLoading(false)
     }
   }
 
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files[0]
+    if (!file || !validateFile(file)) return
+    await handleUpload(file)
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !validateFile(file)) return
+    await handleUpload(file)
+  }
+
   return (
-    <div>
+    <div
+      className={`border-2 border-dashed rounded-lg p-6 text-center ${
+        isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <input
         type="file"
-        onChange={uploadFile}
-        disabled={uploading}
-        className="block w-full text-sm text-gray-500
-          file:mr-4 file:py-2 file:px-4
-          file:rounded-full file:border-0
-          file:text-sm file:font-semibold
-          file:bg-blue-50 file:text-blue-700
-          hover:file:bg-blue-100"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept={acceptedFileTypes.join(',')}
+        className="hidden"
       />
+
+      <div className="space-y-2">
+        <p className="text-sm text-gray-600">
+          Trascina qui la fattura o
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isLoading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {isLoading ? "Caricamento..." : "Seleziona file"}
+        </Button>
+        <p className="text-xs text-gray-500">
+          PDF fino a {maxSize / 1024 / 1024}MB
+        </p>
+      </div>
     </div>
   )
 } 
