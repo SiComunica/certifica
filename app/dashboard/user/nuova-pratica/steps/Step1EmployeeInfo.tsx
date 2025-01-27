@@ -1,50 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
-import { Checkbox } from "@/components/ui/checkbox"
 
 interface ContractType {
   id: number
   name: string
-  code: string
-  description: string
-  base_price: number
+  requires_value: boolean
 }
 
-interface PriceInfo {
+interface PriceRange {
+  id: number
+  contract_type_id: number
   base_price: number
   is_percentage: boolean
-  percentage_value: number | null
-  threshold_value: number | null
-}
-
-interface EmployeeData {
-  employeeName: string
-  fiscalCode: string
-  contractType: string
-  contractValue?: number
-  isOdcec: boolean
-  isRenewal: boolean
-  quantity: number
-  odcecNumber?: string
-  odcecProvince?: string
-  odcecDocument?: File
+  percentage_value: number
+  threshold_value: number
+  max_price: number
+  is_odcec: boolean
+  is_renewal: boolean
 }
 
 interface Props {
   formData: any
-  onSubmit: (data: EmployeeData) => void
+  onSubmit: (data: any) => void
 }
 
 export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [contractTypes, setContractTypes] = useState<ContractType[]>([])
-  const [employeeData, setEmployeeData] = useState<EmployeeData>({
+  const [priceRanges, setPriceRanges] = useState<PriceRange[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [form, setForm] = useState({
     employeeName: formData.employeeName || "",
     fiscalCode: formData.fiscalCode || "",
     contractType: formData.contractType || "",
@@ -52,206 +44,187 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     isOdcec: formData.isOdcec || false,
     isRenewal: formData.isRenewal || false,
     quantity: formData.quantity || 1,
-    odcecNumber: formData.odcecNumber || "",
-    odcecProvince: formData.odcecProvince || ""
   })
-  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
+
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    const loadContractTypes = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('contract_types')
-          .select(`
-            id,
-            name,
-            code,
-            description,
-            price_ranges (base_price)
-          `)
-          .order('name')
-
-        if (error) throw error
-
-        const formattedData = data.map(type => ({
-          id: type.id,
-          name: type.name,
-          code: type.code,
-          description: type.description,
-          base_price: type.price_ranges[0]?.base_price || 0
-        }))
-
-        setContractTypes(formattedData)
-      } catch (error) {
-        console.error('Errore caricamento tipi contratto:', error)
-        toast.error("Errore nel caricamento dei tipi di contratto")
-      }
-    }
-
     loadContractTypes()
   }, [])
 
-  useEffect(() => {
-    const loadPriceInfo = async () => {
-      if (!employeeData.contractType) return
+  const loadContractTypes = async () => {
+    try {
+      // Carica tipi di contratto
+      const { data: types, error: typesError } = await supabase
+        .from('contract_types')
+        .select('*')
+      
+      if (typesError) throw typesError
+      setContractTypes(types)
 
-      try {
-        const { data, error } = await supabase
-          .from('price_ranges')
-          .select('*')
-          .eq('contract_type_id', employeeData.contractType)
-          .eq('is_odcec', employeeData.isOdcec)
-          .eq('is_renewal', employeeData.isRenewal)
-          .single()
+      // Carica prezzi
+      const { data: prices, error: pricesError } = await supabase
+        .from('price_ranges')
+        .select('*')
+      
+      if (pricesError) throw pricesError
+      setPriceRanges(prices)
+    } catch (error) {
+      console.error('Errore caricamento contratti:', error)
+      toast.error("Errore nel caricamento dei tipi di contratto")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-        if (error) throw error
-        setPriceInfo(data)
-      } catch (error) {
-        console.error('Errore caricamento prezzo:', error)
-        setPriceInfo(null)
-      }
+  const calculatePrice = (contractTypeId: string, value: number = 0) => {
+    const priceRange = priceRanges.find(p => 
+      p.contract_type_id === parseInt(contractTypeId) &&
+      p.is_odcec === form.isOdcec &&
+      p.is_renewal === form.isRenewal
+    )
+
+    if (!priceRange) return 0
+
+    let price = priceRange.base_price
+    
+    if (priceRange.is_percentage && value > priceRange.threshold_value) {
+      const excess = value - priceRange.threshold_value
+      const percentageAmount = excess * (priceRange.percentage_value / 100)
+      price += Math.min(percentageAmount, priceRange.max_price - priceRange.base_price)
     }
 
-    loadPriceInfo()
-  }, [employeeData.contractType, employeeData.isOdcec, employeeData.isRenewal])
+    return price * form.quantity
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!employeeData.employeeName || !employeeData.fiscalCode || !employeeData.contractType) {
+    if (!form.employeeName || !form.fiscalCode || !form.contractType) {
       toast.error("Compila tutti i campi obbligatori")
       return
     }
 
-    if (employeeData.isOdcec && (!employeeData.odcecNumber || !employeeData.odcecProvince)) {
-      toast.error("Inserisci i dati ODCEC")
-      return
-    }
+    const selectedContract = contractTypes.find(c => c.id === parseInt(form.contractType))
+    const finalPrice = calculatePrice(form.contractType, form.contractValue)
 
-    onSubmit(employeeData)
+    onSubmit({
+      ...form,
+      contractTypeName: selectedContract?.name,
+      finalPrice
+    })
+  }
+
+  const handleValueChange = (value: string) => {
+    setForm({ ...form, contractType: value })
+  }
+
+  const handleCheckedChange = (field: string) => (checked: boolean) => {
+    setForm({ ...form, [field]: checked })
+  }
+
+  if (isLoading) {
+    return <div>Caricamento...</div>
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="employeeName">Nome e Cognome Dipendente *</Label>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="employeeName">Nome e Cognome Dipendente</Label>
           <Input
             id="employeeName"
-            value={employeeData.employeeName}
-            onChange={(e) => setEmployeeData(prev => ({ ...prev, employeeName: e.target.value }))}
-            placeholder="Mario Rossi"
+            value={form.employeeName}
+            onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
+            required
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="fiscalCode">Codice Fiscale *</Label>
+        <div>
+          <Label htmlFor="fiscalCode">Codice Fiscale</Label>
           <Input
             id="fiscalCode"
-            value={employeeData.fiscalCode}
-            onChange={(e) => setEmployeeData(prev => ({ ...prev, fiscalCode: e.target.value }))}
-            placeholder="RSSMRA80A01H501U"
+            value={form.fiscalCode}
+            onChange={(e) => setForm({ ...form, fiscalCode: e.target.value })}
+            required
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="contractType">Tipo Contratto *</Label>
-          <Select 
-            value={employeeData.contractType}
-            onValueChange={(value) => setEmployeeData(prev => ({ ...prev, contractType: value }))}
+        <div>
+          <Label>Tipo Contratto</Label>
+          <RadioGroup
+            value={form.contractType}
+            onValueChange={handleValueChange}
+            className="space-y-2"
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona tipo contratto" />
-            </SelectTrigger>
-            <SelectContent>
-              {contractTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id.toString()}>
-                  {type.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {contractTypes.map((type) => (
+              <div key={type.id} className="flex items-center space-x-2">
+                <RadioGroupItem value={type.id.toString()} id={`contract-${type.id}`} />
+                <Label htmlFor={`contract-${type.id}`}>{type.name}</Label>
+                <span className="text-sm text-gray-500">
+                  (Base: €{priceRanges.find(p => p.contract_type_id === type.id)?.base_price.toFixed(2)})
+                </span>
+              </div>
+            ))}
+          </RadioGroup>
         </div>
 
-        {employeeData.contractType && (
-          <div className="grid gap-2">
-            <Label htmlFor="quantity">Quantità</Label>
+        {contractTypes.find(c => c.id === parseInt(form.contractType))?.requires_value && (
+          <div>
+            <Label htmlFor="contractValue">Valore Contratto</Label>
             <Input
-              id="quantity"
+              id="contractValue"
               type="number"
-              min="1"
-              value={employeeData.quantity}
-              onChange={(e) => setEmployeeData(prev => ({ 
-                ...prev, 
-                quantity: parseInt(e.target.value) || 1 
-              }))}
+              value={form.contractValue}
+              onChange={(e) => setForm({ ...form, contractValue: parseFloat(e.target.value) })}
+              required
             />
+            <p className="text-sm text-gray-500 mt-1">
+              Verrà applicato l'1.5% sul valore eccedente la soglia
+            </p>
           </div>
         )}
 
+        <div>
+          <Label htmlFor="quantity">Quantità</Label>
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            value={form.quantity}
+            onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) })}
+            required
+          />
+        </div>
+
         <div className="flex items-center space-x-2">
-          <Checkbox
+          <Switch
             id="isOdcec"
-            checked={employeeData.isOdcec}
-            onCheckedChange={(checked) => 
-              setEmployeeData(prev => ({ ...prev, isOdcec: checked as boolean }))
-            }
+            checked={form.isOdcec}
+            onCheckedChange={handleCheckedChange('isOdcec')}
           />
-          <label
-            htmlFor="isOdcec"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Convenzione ODCEC
-          </label>
+          <Label htmlFor="isOdcec">Convenzione ODCEC</Label>
         </div>
-
-        {employeeData.isOdcec && (
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="odcecNumber">Numero Iscrizione ODCEC</Label>
-              <Input
-                id="odcecNumber"
-                value={employeeData.odcecNumber}
-                onChange={(e) => setEmployeeData(prev => ({ ...prev, odcecNumber: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="odcecProvince">Provincia ODCEC</Label>
-              <Input
-                id="odcecProvince"
-                value={employeeData.odcecProvince}
-                onChange={(e) => setEmployeeData(prev => ({ ...prev, odcecProvince: e.target.value }))}
-              />
-            </div>
-          </div>
-        )}
 
         <div className="flex items-center space-x-2">
-          <Checkbox
+          <Switch
             id="isRenewal"
-            checked={employeeData.isRenewal}
-            onCheckedChange={(checked) => 
-              setEmployeeData(prev => ({ ...prev, isRenewal: checked as boolean }))
-            }
+            checked={form.isRenewal}
+            onCheckedChange={handleCheckedChange('isRenewal')}
           />
-          <label
-            htmlFor="isRenewal"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Rinnovo
-          </label>
+          <Label htmlFor="isRenewal">Rinnovo</Label>
         </div>
+
+        {form.contractType && (
+          <div className="p-4 bg-gray-50 rounded-md">
+            <p className="text-lg font-semibold">
+              Prezzo Calcolato: €{calculatePrice(form.contractType, form.contractValue).toFixed(2)}
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          Avanti
-        </button>
-      </div>
+      <Button type="submit">Avanti</Button>
     </form>
   )
 } 

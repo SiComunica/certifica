@@ -3,17 +3,16 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 interface Props {
-  practiceId: string
-  onUploadComplete: () => void
+  practiceId?: string // Opzionale per retrocompatibilità
+  onUploadComplete: (file: File) => void
   acceptedFileTypes?: string[]
   maxSize?: number // in bytes
 }
 
 export function FileUpload({ 
-  practiceId, 
+  practiceId,
   onUploadComplete, 
   acceptedFileTypes = ['.pdf'], 
   maxSize = 5 * 1024 * 1024 
@@ -21,17 +20,6 @@ export function FileUpload({
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientComponentClient()
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
 
   const validateFile = (file: File) => {
     if (maxSize && file.size > maxSize) {
@@ -49,36 +37,14 @@ export function FileUpload({
   }
 
   const handleUpload = async (file: File) => {
+    if (!validateFile(file)) return
+    
     try {
       setIsLoading(true)
-
-      // Creiamo il nome del file con l'ID della pratica
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${practiceId}-receipt.${fileExt}`
-
-      // Upload del file
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(fileName, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      // Aggiorniamo la pratica
-      const { error: updateError } = await supabase
-        .from('practices')
-        .update({ 
-          payment_receipt: fileName,
-          status: 'payment_verified'
-        })
-        .eq('id', practiceId)
-
-      if (updateError) throw updateError
-
-      toast.success("Fattura caricata con successo")
-      onUploadComplete()
+      await onUploadComplete(file)
     } catch (error) {
       console.error('Errore upload:', error)
-      toast.error("Errore nel caricamento della fattura")
+      toast.error("Errore nel caricamento del file")
     } finally {
       setIsLoading(false)
     }
@@ -89,13 +55,13 @@ export function FileUpload({
     setIsDragging(false)
 
     const file = e.dataTransfer.files[0]
-    if (!file || !validateFile(file)) return
+    if (!file) return
     await handleUpload(file)
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !validateFile(file)) return
+    if (!file) return
     await handleUpload(file)
   }
 
@@ -104,8 +70,14 @@ export function FileUpload({
       className={`border-2 border-dashed rounded-lg p-6 text-center ${
         isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
       }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setIsDragging(true)
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault()
+        setIsDragging(false)
+      }}
       onDrop={handleDrop}
     >
       <input
@@ -118,7 +90,7 @@ export function FileUpload({
 
       <div className="space-y-2">
         <p className="text-sm text-gray-600">
-          Trascina qui la fattura o
+          Trascina qui il file firmato o
         </p>
         <Button
           type="button"

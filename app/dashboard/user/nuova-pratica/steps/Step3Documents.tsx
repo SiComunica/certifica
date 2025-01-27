@@ -1,18 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { FileUpload } from "@/components/FileUpload"
 import { toast } from "sonner"
-import { Upload, Download, FileText } from "lucide-react"
+import { Download } from "lucide-react"
 
 interface Template {
   id: number
   name: string
   file_path: string
   description: string
-  is_required: boolean
+  url: string
 }
 
 interface Props {
@@ -22,9 +23,9 @@ interface Props {
 }
 
 export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
-  const [isUploading, setIsUploading] = useState(false)
   const [templates, setTemplates] = useState<Template[]>([])
-  const [documents, setDocuments] = useState<any[]>(formData.documents || [])
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>(formData.documents || {})
+  const [isLoading, setIsLoading] = useState(true)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
@@ -36,157 +37,135 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
       const { data, error } = await supabase
         .from('templates')
         .select('*')
-        .order('id')
+        .order('name')
 
       if (error) throw error
-      setTemplates(data || [])
+      setTemplates(data)
     } catch (error) {
       console.error('Errore caricamento templates:', error)
-      toast.error("Errore nel caricamento dei template")
+      toast.error("Errore nel caricamento dei documenti")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, templateId: number) => {
+  const downloadTemplate = async (template: Template) => {
     try {
-      setIsUploading(true)
-      const file = e.target.files?.[0]
-      if (!file) return
+      const { data, error } = await supabase.storage
+        .from('templates')
+        .download(template.file_path)
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Utente non autenticato")
+      if (error) throw error
 
-      // Upload del file
+      // Crea URL per il download
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = template.name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Errore download template:', error)
+      toast.error("Errore nel download del documento")
+    }
+  }
+
+  const handleUpload = async (templateId: number, file: File) => {
+    try {
+      const template = templates.find(t => t.id === templateId)
+      if (!template) return
+
+      // Crea nome file con prefisso template
       const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/${templateId}_${Date.now()}.${fileExt}`
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const fileName = `${formData.practiceId}/${template.name}_signed.${fileExt}`
+
+      // Upload file
+      const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(fileName, file)
 
       if (uploadError) throw uploadError
 
-      // Aggiorna l'elenco dei documenti
-      const newDoc = {
-        template_id: templateId,
-        file_path: fileName,
-        file_name: file.name
-      }
+      // Aggiorna stato locale
+      setUploadedDocs(prev => ({
+        ...prev,
+        [templateId]: fileName
+      }))
 
-      setDocuments(prev => [...prev.filter(d => d.template_id !== templateId), newDoc])
       toast.success("Documento caricato con successo")
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('Errore upload:', error)
-      toast.error(error.message || "Errore durante il caricamento del file")
-    } finally {
-      setIsUploading(false)
+      toast.error("Errore nel caricamento del documento")
     }
   }
 
-  const handleSubmit = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Utente non autenticato")
-
-      // Trova la pratica più recente in bozza
-      const { data: practice, error: practiceError } = await supabase
-        .from('practices')
-        .select('id, data')
-        .eq('user_id', user.id)
-        .eq('status', 'draft')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (practiceError) throw practiceError
-
-      // Aggiorna la pratica con i documenti
-      const updatedData = {
-        ...practice.data,
-        documents: documents
-      }
-
-      const { error } = await supabase
-        .from('practices')
-        .update({
-          data: updatedData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', practice.id)
-
-      if (error) throw error
-
-      // Procedi allo step successivo
-      onSubmit({ documents })
-
-    } catch (error: any) {
-      console.error('Errore salvataggio documenti:', error)
-      toast.error(error.message || "Errore durante il salvataggio dei documenti")
+  const handleSubmit = () => {
+    // Verifica che tutti i documenti siano stati caricati
+    const allUploaded = templates.every(t => uploadedDocs[t.id])
+    
+    if (!allUploaded) {
+      toast.error("Carica tutti i documenti richiesti")
+      return
     }
+
+    onSubmit({
+      ...formData,
+      documents: uploadedDocs
+    })
+  }
+
+  if (isLoading) {
+    return <div>Caricamento documenti...</div>
   }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            {templates.map((template) => (
-              <div key={template.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">{template.name}</h4>
-                  <p className="text-sm text-gray-500">{template.description}</p>
-                  {template.is_required && (
-                    <span className="text-xs text-red-500">* Obbligatorio</span>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(template.file_path, '_blank')}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Scarica Template
-                  </Button>
-
-                  <div className="relative">
-                    <label className="cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Upload className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-500">
-                          {documents.some(doc => doc.template_id === template.id)
-                            ? "Sostituisci documento"
-                            : "Carica documento firmato"
-                          }
-                        </span>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        onChange={(e) => handleFileUpload(e, template.id)}
-                        disabled={isUploading}
-                      />
-                    </label>
-                  </div>
-                </div>
+      <div className="grid gap-6">
+        {templates.map((template) => (
+          <Card key={template.id} className="p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{template.name}</h3>
+                {template.description && (
+                  <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                )}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadTemplate(template)}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Scarica Template
+              </Button>
+            </div>
 
-      <div className="flex justify-between space-x-4">
-        <Button
-          onClick={onBack}
-          variant="outline"
-          type="button"
-        >
+            <div className="mt-4">
+              {uploadedDocs[template.id] ? (
+                <div className="p-4 bg-green-50 rounded-md">
+                  <p className="text-sm text-green-600">
+                    Documento caricato ✓
+                  </p>
+                </div>
+              ) : (
+                <FileUpload
+                  onUploadComplete={(file) => handleUpload(template.id, file)}
+                  acceptedFileTypes={['.pdf']}
+                  maxSize={5 * 1024 * 1024}
+                />
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack}>
           Indietro
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={isUploading}
-        >
+        <Button onClick={handleSubmit}>
           Avanti
         </Button>
       </div>
