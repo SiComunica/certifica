@@ -3,109 +3,121 @@
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { toast } from "sonner"
 
 interface PriceRange {
-  id: number
+  id?: number
   contract_type_id: number
-  min_quantity: number
-  max_quantity: number | null
-  base_price: string
+  base_price: number
   is_percentage: boolean
-  percentage_value: string | null
-  threshold_value: string | null
-  max_price: string | null
+  percentage_value: number | null
+  threshold_value: number | null
   is_odcec: boolean
   is_renewal: boolean
 }
 
-interface ContractType {
-  id: number
-  name: string
-  code: string
-}
-
-interface PriceRangeModalProps {
+interface Props {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: Partial<PriceRange>) => Promise<void>
-  editingPrice?: PriceRange | null
-  contractTypes: ContractType[]
+  onSave: () => void
+  priceRange: PriceRange | null
 }
 
-export default function PriceRangeModal({
-  isOpen,
-  onClose,
-  onSave,
-  editingPrice,
-  contractTypes
-}: PriceRangeModalProps) {
-  const [formData, setFormData] = useState<Partial<PriceRange>>({
-    contract_type_id: undefined,
-    min_quantity: undefined,
-    max_quantity: null,
-    base_price: '',
+export default function PriceRangeModal({ isOpen, onClose, onSave, priceRange }: Props) {
+  const [contractTypes, setContractTypes] = useState<any[]>([])
+  const [formData, setFormData] = useState<PriceRange>({
+    contract_type_id: 0,
+    base_price: 0,
     is_percentage: false,
     percentage_value: null,
     threshold_value: null,
-    max_price: null,
     is_odcec: false,
     is_renewal: false
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (editingPrice) {
-      setFormData(editingPrice)
-    } else {
-      setFormData({
-        contract_type_id: undefined,
-        min_quantity: undefined,
-        max_quantity: null,
-        base_price: '',
-        is_percentage: false,
-        percentage_value: null,
-        threshold_value: null,
-        max_price: null,
-        is_odcec: false,
-        is_renewal: false
-      })
+    loadContractTypes()
+    if (priceRange) {
+      setFormData(priceRange)
     }
-  }, [editingPrice, isOpen])
+  }, [priceRange])
+
+  const loadContractTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contract_types')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setContractTypes(data || [])
+    } catch (error) {
+      toast.error("Errore nel caricamento dei tipi di contratto")
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await onSave(formData)
-    onClose()
+    setIsLoading(true)
+
+    try {
+      if (priceRange?.id) {
+        // Update
+        const { error } = await supabase
+          .from('price_ranges')
+          .update(formData)
+          .eq('id', priceRange.id)
+
+        if (error) throw error
+        toast.success("Tariffa aggiornata con successo")
+      } else {
+        // Insert
+        const { error } = await supabase
+          .from('price_ranges')
+          .insert(formData)
+
+        if (error) throw error
+        toast.success("Tariffa creata con successo")
+      }
+
+      onSave()
+      onClose()
+    } catch (error) {
+      toast.error("Errore durante il salvataggio")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editingPrice ? 'Modifica Tariffa' : 'Nuova Tariffa'}
+            {priceRange ? "Modifica Tariffa" : "Nuova Tariffa"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo Contratto</Label>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="contractType">Tipo Contratto</Label>
               <Select
-                value={formData.contract_type_id?.toString()}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, contract_type_id: parseInt(value) }))}
+                value={formData.contract_type_id.toString()}
+                onValueChange={(value) => setFormData(prev => ({ 
+                  ...prev, 
+                  contract_type_id: parseInt(value) 
+                }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleziona tipo" />
+                  <SelectValue placeholder="Seleziona tipo contratto" />
                 </SelectTrigger>
                 <SelectContent>
                   {contractTypes.map((type) => (
@@ -117,71 +129,92 @@ export default function PriceRangeModal({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Prezzo Base</Label>
+            <div className="grid gap-2">
+              <Label htmlFor="basePrice">Prezzo Base</Label>
               <Input
+                id="basePrice"
                 type="number"
-                step="0.01"
                 value={formData.base_price}
-                onChange={(e) => setFormData(prev => ({ ...prev, base_price: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Quantità Minima</Label>
-              <Input
-                type="number"
-                value={formData.min_quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, min_quantity: parseInt(e.target.value) }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Quantità Massima</Label>
-              <Input
-                type="number"
-                value={formData.max_quantity || ''}
                 onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
-                  max_quantity: e.target.value ? parseInt(e.target.value) : null 
+                  base_price: parseFloat(e.target.value) 
                 }))}
-                placeholder="Lascia vuoto per illimitato"
               />
             </div>
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_odcec"
-              checked={formData.is_odcec}
-              onCheckedChange={(checked) => 
-                setFormData(prev => ({ ...prev, is_odcec: checked as boolean }))
-              }
-            />
-            <Label htmlFor="is_odcec">ODCEC</Label>
-          </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isPercentage"
+                checked={formData.is_percentage}
+                onCheckedChange={(checked) => setFormData(prev => ({ 
+                  ...prev, 
+                  is_percentage: checked as boolean 
+                }))}
+              />
+              <Label htmlFor="isPercentage">Calcolo Percentuale</Label>
+            </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_renewal"
-              checked={formData.is_renewal}
-              onCheckedChange={(checked) => 
-                setFormData(prev => ({ ...prev, is_renewal: checked as boolean }))
-              }
-            />
-            <Label htmlFor="is_renewal">Rinnovo</Label>
+            {formData.is_percentage && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="percentageValue">Percentuale</Label>
+                  <Input
+                    id="percentageValue"
+                    type="number"
+                    value={formData.percentage_value || ""}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      percentage_value: parseFloat(e.target.value) 
+                    }))}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="thresholdValue">Valore Soglia</Label>
+                  <Input
+                    id="thresholdValue"
+                    type="number"
+                    value={formData.threshold_value || ""}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      threshold_value: parseFloat(e.target.value) 
+                    }))}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isOdcec"
+                checked={formData.is_odcec}
+                onCheckedChange={(checked) => setFormData(prev => ({ 
+                  ...prev, 
+                  is_odcec: checked as boolean 
+                }))}
+              />
+              <Label htmlFor="isOdcec">Tariffa ODCEC</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isRenewal"
+                checked={formData.is_renewal}
+                onCheckedChange={(checked) => setFormData(prev => ({ 
+                  ...prev, 
+                  is_renewal: checked as boolean 
+                }))}
+              />
+              <Label htmlFor="isRenewal">Tariffa Rinnovo</Label>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Annulla
             </Button>
-            <Button type="submit">
-              {editingPrice ? 'Salva Modifiche' : 'Aggiungi Tariffa'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Salvataggio..." : "Salva"}
             </Button>
           </div>
         </form>

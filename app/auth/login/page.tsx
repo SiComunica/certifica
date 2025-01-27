@@ -45,42 +45,29 @@ export default function LoginPage() {
     },
   })
 
-  async function onSubmit(data: LoginFormData) {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true)
-      console.log('Tentativo di login con:', data.email)
       
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
-      if (error) {
-        console.error('Errore auth:', error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log('Login riuscito:', authData)
-
-      const { data: userProfile, error: profileError } = await supabase
+      // Ottieni il profilo utente
+      const { data: profile } = await supabase
         .from('profiles')
-        .select()
+        .select('role')
         .eq('user_id', authData.user.id)
         .single()
 
-      if (profileError) {
-        console.error('Errore profilo:', profileError)
-        throw profileError
-      }
-
-      console.log('Profilo trovato:', userProfile)
-
-      if (userProfile?.role === 'admin') {
-        console.log('Reindirizzamento a /admin/dashboard')
-        router.push('/admin/dashboard')
+      // Reindirizza in base al ruolo
+      if (profile?.role === 'admin') {
+        router.push('/dashboard/admin') // dashboard commissione
       } else {
-        console.log('Reindirizzamento a /dashboard') 
-        router.push('/dashboard')
+        router.push('/dashboard/user') // dashboard aziende
       }
 
     } catch (error) {

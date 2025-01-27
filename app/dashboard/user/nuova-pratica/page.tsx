@@ -1,44 +1,67 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step2CompanyInfo from "./steps/Step2CompanyInfo"
-import Step2ContractInfo from "./steps/Step2ContractInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
-import { Steps } from "@/components/ui/steps"
 
 interface FormData {
-  practiceId?: string
-  employeeName?: string
-  fiscalCode?: string
-  contractType?: string
-  totalPrice?: number
-  productCode?: string
-  employeeInfo?: {
-    firstName: string
-    lastName: string
-    fiscalCode: string
-    email?: string
-  }
-  companyInfo?: {
-    companyName: string
-    vatNumber: string
-  }
-  documents?: Array<{
-    name: string
-    path: string
-    template_id: number
-  }>
-  [key: string]: any
+  employeeName: string
+  fiscalCode: string
+  contractType: string
+  contractValue: number
+  isOdcec: boolean
+  isRenewal: boolean
+  quantity: number
+  odcecNumber: string
+  odcecProvince: string
+  companyName: string
+  vatNumber: string
+  address: string
+  city: string
+  province: string
+  postalCode: string
+  documents: any[]
+  practiceId: string
+  contractTypeName: string
+  email?: string
 }
 
-export default function NewPractice() {
+export default function NuovaPraticaPage() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<FormData>({})
+  const [formData, setFormData] = useState<FormData>({
+    // Dati dipendente
+    employeeName: "",
+    fiscalCode: "",
+    contractType: "",
+    contractValue: 0,
+    isOdcec: false,
+    isRenewal: false,
+    quantity: 1,
+    odcecNumber: "",
+    odcecProvince: "",
+    
+    // Dati azienda
+    companyName: "",
+    vatNumber: "",
+    address: "",
+    city: "",
+    province: "",
+    postalCode: "",
+    
+    // Documenti
+    documents: [],
+    
+    // Altri dati
+    practiceId: "",
+    contractTypeName: "",
+  })
+
+  const router = useRouter()
   const supabase = createClientComponentClient()
 
   const handleSubmit = async (stepData: any) => {
@@ -51,7 +74,6 @@ export default function NewPractice() {
         return
       }
 
-      const currentDate = new Date().toISOString()
       const updatedFormData = {
         ...formData,
         ...stepData
@@ -63,11 +85,10 @@ export default function NewPractice() {
           user_id: user.id,
           status: 'draft',
           data: updatedFormData,
-          created_at: currentDate,
-          submission_date: currentDate,
+          created_at: new Date().toISOString(),
           employee_name: stepData.employeeName || '',
           employee_fiscal_code: stepData.fiscalCode || '',
-          contract_type: stepData.contractType || 'standard'
+          contract_type: stepData.contractType || 'standard'  // Aggiunto questo campo
         }
 
         console.log("Inserting practice data:", practiceData)
@@ -87,11 +108,10 @@ export default function NewPractice() {
       } else {
         const updateData = {
           data: updatedFormData,
-          updated_at: currentDate,
-          submission_date: currentDate,
+          updated_at: new Date().toISOString(),
           employee_name: stepData.employeeName || '',
           employee_fiscal_code: stepData.fiscalCode || '',
-          contract_type: stepData.contractType || 'standard'
+          contract_type: stepData.contractType || 'standard'  // Aggiunto questo campo
         }
 
         console.log("Updating practice data:", updateData)
@@ -117,51 +137,47 @@ export default function NewPractice() {
     }
   }
 
-  return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Nuova Pratica</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Steps 
-            currentStep={currentStep} 
-            steps={[
-              { label: "Dati Dipendente" },
-              { label: "Dati Azienda" },
-              { label: "Documenti" },
-              { label: "Pagamento" }
-            ]} 
-          />
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1)
+  }
 
-          {currentStep === 1 && (
-            <Step1EmployeeInfo 
-              formData={formData} 
-              onSubmit={handleSubmit}
-            />
-          )}
-          {currentStep === 2 && (
-            <Step2CompanyInfo 
-              formData={formData}
-              onSubmit={handleSubmit}
-              onBack={() => setCurrentStep(1)}
-            />
-          )}
-          {currentStep === 3 && (
-            <Step3Documents 
-              formData={formData}
-              onSubmit={handleSubmit}
-              onBack={() => setCurrentStep(2)}
-            />
-          )}
-          {currentStep === 4 && (
-            <Step4Payment 
-              formData={formData}
-              setFormData={setFormData}
-            />
-          )}
-        </CardContent>
-      </Card>
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-2">Nuova Pratica</h1>
+        <p className="text-gray-600">Step {currentStep} di 4</p>
+      </div>
+
+      {currentStep === 1 && (
+        <Step1EmployeeInfo 
+          formData={formData}
+          onSubmit={handleSubmit}
+        />
+      )}
+
+      {currentStep === 2 && (
+        <Step2CompanyInfo
+          formData={formData}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+        />
+      )}
+
+      {currentStep === 3 && (
+        <Step3Documents
+          formData={formData}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+        />
+      )}
+
+      {currentStep === 4 && (
+        <Step4Payment
+          formData={formData}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+        />
+      )}
     </div>
   )
 }

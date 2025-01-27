@@ -16,20 +16,20 @@ interface CompanyFormData {
   postalCode: string
 }
 
-interface Props {
-  formData: any
+interface Step2Props {
+  formData: CompanyFormData
   onSubmit: (data: CompanyFormData) => void
   onBack: () => void
 }
 
-export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) {
+export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Step2Props) {
   const [companyData, setCompanyData] = useState<CompanyFormData>({
-    companyName: formData?.companyName || "",
-    vatNumber: formData?.vatNumber || "",
-    address: formData?.address || "",
-    city: formData?.city || "",
-    province: formData?.province || "",
-    postalCode: formData?.postalCode || ""
+    companyName: formData.companyName || "",
+    vatNumber: formData.vatNumber || "",
+    address: formData.address || "",
+    city: formData.city || "",
+    province: formData.province || "",
+    postalCode: formData.postalCode || ""
   })
 
   const supabase = createClientComponentClient()
@@ -37,7 +37,8 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!companyData.companyName || !companyData.vatNumber) {
+    if (!companyData.companyName || !companyData.vatNumber || !companyData.address || 
+        !companyData.city || !companyData.province || !companyData.postalCode) {
       toast.error("Compila tutti i campi obbligatori")
       return
     }
@@ -109,16 +110,15 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid gap-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
         <div className="grid gap-2">
           <Label htmlFor="companyName">Ragione Sociale *</Label>
           <Input
             id="companyName"
             value={companyData.companyName}
             onChange={(e) => setCompanyData(prev => ({ ...prev, companyName: e.target.value }))}
-            placeholder="Inserisci la ragione sociale"
-            required
+            placeholder="Ragione Sociale"
           />
         </div>
 
@@ -128,13 +128,12 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
             id="vatNumber"
             value={companyData.vatNumber}
             onChange={(e) => setCompanyData(prev => ({ ...prev, vatNumber: e.target.value }))}
-            placeholder="Inserisci la partita IVA"
-            required
+            placeholder="Partita IVA"
           />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="address">Indirizzo</Label>
+          <Label htmlFor="address">Indirizzo *</Label>
           <Input
             id="address"
             value={companyData.address}
@@ -143,9 +142,9 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="city">Città</Label>
+            <Label htmlFor="city">Città *</Label>
             <Input
               id="city"
               value={companyData.city}
@@ -155,7 +154,7 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="province">Provincia</Label>
+            <Label htmlFor="province">Provincia *</Label>
             <Input
               id="province"
               value={companyData.province}
@@ -166,7 +165,7 @@ export default function Step2CompanyInfo({ formData, onSubmit, onBack }: Props) 
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="postalCode">CAP</Label>
+            <Label htmlFor="postalCode">CAP *</Label>
             <Input
               id="postalCode"
               value={companyData.postalCode}

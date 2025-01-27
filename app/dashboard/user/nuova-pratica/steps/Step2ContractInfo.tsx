@@ -1,159 +1,126 @@
 "use client"
 
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 
-const contractSchema = z.object({
-  type: z.string().min(1, "Tipo contratto richiesto"),
-  startDate: z.string().min(1, "Data inizio richiesta"),
-  endDate: z.string().optional(),
-  salary: z.string().min(1, "Retribuzione richiesta"),
-  notes: z.string().optional()
-})
-
-type ContractFormData = z.infer<typeof contractSchema>
+interface ContractFormData {
+  type: string
+  startDate: string
+  endDate?: string
+  salary: string
+  notes?: string
+}
 
 interface Step2Props {
-  data: ContractFormData
-  updateData: (data: ContractFormData) => void
-  onNext: () => void
+  formData: ContractFormData
+  onSubmit: (data: ContractFormData) => void
   onBack: () => void
 }
 
-const CONTRACT_TYPES = [
-  { id: 1, code: 'determinato', name: 'Determinato' },
-  { id: 2, code: 'indeterminato', name: 'Indeterminato' },
-  { id: 3, code: 'cooperativa', name: 'Cooperativa' },
-  { id: 4, code: 'apprendistato', name: 'Apprendistato' }
-]
-
-export default function Step2ContractInfo({ data, updateData, onNext, onBack }: Step2Props) {
-  const form = useForm<ContractFormData>({
-    resolver: zodResolver(contractSchema),
-    defaultValues: data
+export default function Step2ContractInfo({ formData, onSubmit, onBack }: Step2Props) {
+  const [contractData, setContractData] = useState<ContractFormData>({
+    type: formData.type || "",
+    startDate: formData.startDate || "",
+    endDate: formData.endDate || "",
+    salary: formData.salary || "",
+    notes: formData.notes || ""
   })
 
-  const onSubmit = (formData: ContractFormData) => {
-    updateData(formData)
-    onNext()
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!contractData.type || !contractData.startDate || !contractData.salary) {
+      toast.error("Compila tutti i campi obbligatori")
+      return
+    }
+
+    // Validazione data fine se contratto determinato
+    if (contractData.type === "determinato" && !contractData.endDate) {
+      toast.error("Inserisci la data di fine contratto")
+      return
+    }
+
+    onSubmit(contractData)
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <h2 className="text-xl font-semibold mb-6">Tipo di Contratto</h2>
-        
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo Contratto</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo contratto" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {CONTRACT_TYPES.map((type) => (
-                    <SelectItem key={type.id} value={type.code}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div className="grid gap-2">
+          <Label htmlFor="type">Tipo Contratto *</Label>
+          <Select 
+            value={contractData.type}
+            onValueChange={(value) => setContractData(prev => ({ ...prev, type: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona tipo contratto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="indeterminato">Tempo Indeterminato</SelectItem>
+              <SelectItem value="determinato">Tempo Determinato</SelectItem>
+              <SelectItem value="apprendistato">Apprendistato</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Data Inizio</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Data Fine (opzionale)</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+        <div className="grid gap-2">
+          <Label htmlFor="startDate">Data Inizio *</Label>
+          <Input
+            id="startDate"
+            type="date"
+            value={contractData.startDate}
+            onChange={(e) => setContractData(prev => ({ ...prev, startDate: e.target.value }))}
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="salary"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Retribuzione Mensile (€)</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {contractData.type === "determinato" && (
+          <div className="grid gap-2">
+            <Label htmlFor="endDate">Data Fine *</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={contractData.endDate}
+              onChange={(e) => setContractData(prev => ({ ...prev, endDate: e.target.value }))}
+            />
+          </div>
+        )}
 
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Note (opzionale)</FormLabel>
-              <FormControl>
-                <Textarea {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-between">
-          <Button type="button" variant="outline" onClick={onBack}>
-            Indietro
-          </Button>
-          <Button type="submit">
-            Avanti
-          </Button>
+        <div className="grid gap-2">
+          <Label htmlFor="salary">Retribuzione Mensile Lorda *</Label>
+          <Input
+            id="salary"
+            type="number"
+            value={contractData.salary}
+            onChange={(e) => setContractData(prev => ({ ...prev, salary: e.target.value }))}
+            placeholder="0.00"
+            step="0.01"
+          />
         </div>
-      </form>
-    </Form>
+
+        <div className="grid gap-2">
+          <Label htmlFor="notes">Note Aggiuntive</Label>
+          <Textarea
+            id="notes"
+            value={contractData.notes}
+            onChange={(e) => setContractData(prev => ({ ...prev, notes: e.target.value }))}
+            placeholder="Inserisci eventuali note..."
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-between pt-4">
+        <Button type="button" variant="outline" onClick={onBack}>
+          Indietro
+        </Button>
+        <Button type="submit">
+          Avanti
+        </Button>
+      </div>
+    </form>
   )
 } 
