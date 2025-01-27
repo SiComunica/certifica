@@ -88,10 +88,11 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
     let price = priceRange.base_price
     
-    if (priceRange.is_percentage && value > priceRange.threshold_value) {
-      const excess = value - priceRange.threshold_value
-      const percentageAmount = excess * (priceRange.percentage_value / 100)
-      price += Math.min(percentageAmount, priceRange.max_price - priceRange.base_price)
+    // Se è un contratto a valore aggiunto, calcola l'1.5%
+    const selectedContract = contractTypes.find(c => c.id === parseInt(contractTypeId))
+    if (selectedContract?.requires_value && value > 0) {
+      const additionalValue = value * 0.015 // 1.5%
+      price += additionalValue
     }
 
     return price * form.quantity
@@ -154,33 +155,37 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           <Label>Tipo Contratto</Label>
           <RadioGroup
             value={form.contractType}
-            onValueChange={handleValueChange}
+            onValueChange={(value) => setForm({ ...form, contractType: value })}
             className="space-y-2"
           >
             {contractTypes.map((type) => (
               <div key={type.id} className="flex items-center space-x-2">
                 <RadioGroupItem value={type.id.toString()} id={`contract-${type.id}`} />
                 <Label htmlFor={`contract-${type.id}`}>{type.name}</Label>
-                <span className="text-sm text-gray-500">
-                  (Base: €{priceRanges.find(p => p.contract_type_id === type.id)?.base_price.toFixed(2)})
-                </span>
               </div>
             ))}
           </RadioGroup>
         </div>
 
-        {contractTypes.find(c => c.id === parseInt(form.contractType))?.requires_value && (
+        {contractTypes.find(c => 
+          c.id === parseInt(form.contractType) && 
+          c.requires_value
+        ) && (
           <div>
             <Label htmlFor="contractValue">Valore Contratto</Label>
             <Input
               id="contractValue"
               type="number"
               value={form.contractValue}
-              onChange={(e) => setForm({ ...form, contractValue: parseFloat(e.target.value) })}
-              required
+              onChange={(e) => setForm({ 
+                ...form, 
+                contractValue: parseFloat(e.target.value) || 0 
+              })}
+              placeholder="Inserisci il valore del contratto"
+              className="mt-1"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Verrà applicato l'1.5% sul valore eccedente la soglia
+              Verrà applicato l'1.5% sul valore inserito
             </p>
           </div>
         )}
@@ -220,6 +225,14 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             <p className="text-lg font-semibold">
               Prezzo Calcolato: €{calculatePrice(form.contractType, form.contractValue).toFixed(2)}
             </p>
+            {contractTypes.find(c => 
+              c.id === parseInt(form.contractType) && 
+              c.requires_value
+            ) && form.contractValue > 0 && (
+              <p className="text-sm text-gray-600 mt-1">
+                Include 1.5% su €{form.contractValue.toFixed(2)}: €{(form.contractValue * 0.015).toFixed(2)}
+              </p>
+            )}
           </div>
         )}
       </div>

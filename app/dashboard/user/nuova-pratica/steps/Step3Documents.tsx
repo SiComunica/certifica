@@ -77,14 +77,16 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
       const template = templates.find(t => t.id === templateId)
       if (!template) return
 
-      // Crea nome file con prefisso template
+      // Crea nome file univoco per questa pratica
       const fileExt = file.name.split('.').pop()
-      const fileName = `${formData.practiceId}/${template.name}_signed.${fileExt}`
+      const fileName = `${formData.practiceId}/${template.name.replace('.pdf', '')}_signed_${Date.now()}.${fileExt}`
 
-      // Upload file
+      // Upload del nuovo file
       const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file)
+        .from('uploads')
+        .upload(fileName, file, {
+          cacheControl: '3600'
+        })
 
       if (uploadError) throw uploadError
 
@@ -97,7 +99,7 @@ export default function Step3Documents({ formData, onSubmit, onBack }: Props) {
       toast.success("Documento caricato con successo")
     } catch (error) {
       console.error('Errore upload:', error)
-      toast.error("Errore nel caricamento del documento")
+      toast.error("Errore nel caricamento del documento. Riprova.")
     }
   }
 
