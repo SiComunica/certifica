@@ -1,26 +1,48 @@
 import { NextResponse } from 'next/server'
 
 async function getEasyCommerceToken() {
-  const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      Username: "[App esterna]",  // Esattamente come nella documentazione
-      Password: "XXXX"           // Esattamente come nella documentazione
+  try {
+    console.log('Richiesta token...')
+    
+    const authBody = {
+      Username: "[App esterna]",
+      Password: "XXXX"
+    }
+    console.log('Dati autenticazione:', authBody)
+
+    const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(authBody)
     })
-  })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Errore auth:', errorText)
-    throw new Error(`Errore nell'ottenere il token: ${response.status} ${errorText}`)
+    console.log('Status risposta auth:', response.status)
+    const responseText = await response.text()
+    console.log('Risposta auth completa:', responseText)
+
+    if (!response.ok) {
+      throw new Error(`Errore auth: ${response.status} ${responseText}`)
+    }
+
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (e) {
+      throw new Error(`Risposta non valida: ${responseText}`)
+    }
+
+    if (!data) {
+      throw new Error('Nessun token ricevuto')
+    }
+
+    console.log('Token ottenuto con successo')
+    return data
+  } catch (error) {
+    console.error('Errore durante autenticazione:', error)
+    throw error
   }
-
-  const data = await response.json()
-  console.log('Risposta token:', data)  // Per vedere cosa riceviamo
-  return data  // Dovrebbe essere un JWT token come nell'esempio della documentazione
 }
 
 export async function POST(request: Request) {
