@@ -112,7 +112,14 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     try {
       setIsProcessing(true)
 
-      // 1. Chiamiamo la nostra API invece di Easy Commerce direttamente
+      console.log('Invio dati per pagamento:', {
+        contractType: formData.contractType,
+        totalPrice,
+        employeeName: formData.employeeName,
+        fiscalCode: formData.fiscalCode,
+        email: formData.email
+      })
+
       const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
@@ -127,24 +134,36 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         })
       })
 
-      const { iuv, codiceavviso } = await response.json()
+      const data = await response.json()
+      console.log('Risposta ricevuta:', data)
 
-      // 2. Salviamo lo IUV nel database
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      if (!data.codiceavviso) {
+        throw new Error('Codice avviso non ricevuto')
+      }
+
+      // Salviamo lo IUV nel database
       await supabase
         .from('practices')
         .update({ 
-          payment_iuv: iuv,
+          payment_iuv: data.iuv,
           status: 'awaiting_receipt',
           updated_at: new Date().toISOString()
         })
         .eq('id', formData.practiceId)
 
-      // 3. Redirect alla pagina di pagamento
-      window.location.href = `https://uniupo.temposrl.it/easycommerce/Payment/Index/${codiceavviso}`
+      // Redirect con controllo
+      const paymentUrl = `https://uniupo.temposrl.it/easycommerce/Payment/Index/${data.codiceavviso}`
+      console.log('Redirect a:', paymentUrl)
+      window.location.href = paymentUrl
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore:', error)
-      toast.error("Errore durante l'avvio del pagamento")
+      const errorMessage = error instanceof Error ? error.message : "Errore durante l'avvio del pagamento"
+      toast.error(errorMessage)
       setIsProcessing(false)
     }
   }
