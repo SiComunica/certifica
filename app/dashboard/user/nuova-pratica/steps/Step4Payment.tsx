@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
@@ -30,6 +30,7 @@ interface FormData {
   practiceId: string
   documents: Record<string, string>
   finalPrice: number
+  email?: string
 }
 
 interface Props {
@@ -57,6 +58,7 @@ interface Props {
     conventionCode?: string
     conventionDiscount?: number
     documents: Record<string, string>
+    email?: string
   }
   onSubmit: (data: any) => void
   onBack: () => void
@@ -110,27 +112,35 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     try {
       setIsProcessing(true)
 
-      const { error } = await supabase
+      // 1. Chiamiamo direttamente l'API per generare l'avviso di pagamento
+      const response = await fetch(`https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso/${formData.contractType}/${Math.round(totalPrice * 100)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nomecognome: formData.employeeName,
+          codicefiscale: formData.fiscalCode,
+          email: formData.email || '',  // Se non c'è email, Easy Commerce userà quella di default
+          codiceprodotto: formData.contractType,
+          prezzo: Math.round(totalPrice * 100) // Convertiamo in centesimi
+        })
+      })
+
+      const { iuv, codiceavviso } = await response.json()
+
+      // 2. Salviamo lo IUV nel database
+      await supabase
         .from('practices')
         .update({ 
+          payment_iuv: iuv,
           status: 'awaiting_receipt',
-          payment_started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          final_price: totalPrice,
-          convention_code: appliedConvention?.code,
-          convention_discount: appliedConvention?.discount_percentage
+          updated_at: new Date().toISOString()
         })
         .eq('id', formData.practiceId)
 
-      if (error) throw error
-
-      localStorage.setItem('pendingPayment', JSON.stringify({
-        practiceId: formData.practiceId,
-        amount: totalPrice,
-        timestamp: new Date().toISOString()
-      }))
-
-      window.location.href = process.env.NEXT_PUBLIC_PAGOPA_URL || ""
+      // 3. Redirect alla pagina di pagamento
+      window.location.href = `https://uniupo.temposrl.it/easycommerce/Payment/Index/${codiceavviso}`
 
     } catch (error) {
       console.error('Errore:', error)
@@ -227,32 +237,33 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Riepilogo Pratica</h2>
-        
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-medium">Dipendente</h3>
-            <p>{formData.employeeName}</p>
-            <p className="text-sm text-gray-600">{formData.fiscalCode}</p>
-          </div>
-
-          <div>
-            <h3 className="font-medium">Contratto</h3>
-            <p>{formData.contractTypeName}</p>
-            {formData.contractValue > 0 && (
-              <p className="text-sm text-gray-600">
-                Valore: €{formData.contractValue.toFixed(2)}
-              </p>
-            )}
-          </div>
-
-          {formData.conventionCode && (
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Riepilogo Pratica</h2>
+          
+          <div className="space-y-4">
             <div>
-              <h3 className="font-medium">Convenzione Applicata</h3>
-              <p>Sconto del {formData.conventionDiscount}%</p>
+              <h3 className="font-medium">Dipendente</h3>
+              <p>{formData.employeeName}</p>
+              <p className="text-sm text-gray-600">{formData.fiscalCode}</p>
             </div>
-          )}
+
+            <div>
+              <h3 className="font-medium">Contratto</h3>
+              <p>{formData.contractTypeName}</p>
+              {formData.contractValue > 0 && (
+                <p className="text-sm text-gray-600">
+                  Valore: €{formData.contractValue.toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            {formData.conventionCode && (
+              <div>
+                <h3 className="font-medium">Convenzione Applicata</h3>
+                <p>Sconto del {formData.conventionDiscount}%</p>
+              </div>
+            )}
 
           <div>
             <h3 className="font-medium">Documenti Allegati</h3>
@@ -291,47 +302,58 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
           )}
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-blue-600">Imponibile:</span>
-              <span className="font-medium">€{(finalTotal / 1.22).toLocaleString()}</span>
-            </div>
+          {/* Box informativo */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-800 mb-2">Procedura di Pagamento</h4>
+            <ul className="space-y-2 text-sm text-blue-700">
+              <li>1. Cliccando su "Procedi al Pagamento" verrai reindirizzato alla piattaforma pagoPA</li>
+              <li>2. Dopo il pagamento, riceverai una email con la ricevuta telematica</li>
+              <li>3. Torna in questa piattaforma nella sezione "Le Mie Pratiche"</li>
+              <li>4. Carica la ricevuta telematica per completare la procedura</li>
+              <li>5. La pratica verrà inviata alla commissione per la valutazione</li>
+            </ul>
+          </div>
 
-            {appliedConvention && (
-              <div className="flex justify-between items-center text-sm text-green-600">
-                <span>Sconto ({appliedConvention.discount_percentage}%):</span>
-                <span>- €{(totalPrice - finalTotal).toLocaleString()}</span>
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-blue-600">Imponibile:</span>
+                <span className="font-medium">€{(finalTotal / 1.22).toLocaleString()}</span>
               </div>
-            )}
 
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-blue-600">IVA (22%):</span>
-              <span className="font-medium">€{(finalTotal - (finalTotal / 1.22)).toLocaleString()}</span>
-            </div>
+              {appliedConvention && (
+                <div className="flex justify-between items-center text-sm text-green-600">
+                  <span>Sconto ({appliedConvention.discount_percentage}%):</span>
+                  <span>- €{(totalPrice - finalTotal).toLocaleString()}</span>
+                </div>
+              )}
 
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="text-blue-600 font-medium">Totale da pagare:</span>
-              <span className="text-xl font-bold text-blue-600">
-                €{finalTotal.toLocaleString()}
-              </span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-blue-600">IVA (22%):</span>
+                <span className="font-medium">€{(finalTotal - (finalTotal / 1.22)).toLocaleString()}</span>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-blue-600 font-medium">Totale da pagare:</span>
+                <span className="text-xl font-bold text-blue-600">
+                  €{finalTotal.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
+      <div className="flex justify-between space-x-4">
+        <Button onClick={onBack} variant="outline">
           Indietro
         </Button>
-        <Button 
-          onClick={() => onSubmit({ 
-            ...formData, 
-            finalPrice: finalTotal,
-            conventionDiscount: appliedConvention?.discount_percentage 
-          })}
+        <Button
+          onClick={handlePayment}
+          disabled={isProcessing}
+          className="bg-green-600 hover:bg-green-700"
         >
-          Procedi al Pagamento
+          {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
         </Button>
       </div>
     </div>
