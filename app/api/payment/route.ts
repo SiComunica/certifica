@@ -5,8 +5,8 @@ async function getEasyCommerceToken() {
     console.log('=== INIZIO AUTENTICAZIONE ===')
     
     const authBody = {
-      Username: "[App esterna]",
-      Password: "XXXX"
+      username: "App esterna",
+      password: "XXXX"
     }
     console.log('Invio richiesta token con:', JSON.stringify(authBody, null, 2))
 
