@@ -9,6 +9,14 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
+interface Convention {
+  id: string
+  code: string
+  discount_percentage: number
+  description: string
+  is_active: boolean
+}
+
 interface FormData {
   employeeName: string
   fiscalCode: string
@@ -34,8 +42,9 @@ interface Props {
 export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [finalPrice, setFinalPrice] = useState(0)
-  const [conventionCode, setConventionCode] = useState(formData.conventionCode || "")
-  const [isApplyingConvention, setIsApplyingConvention] = useState(false)
+  const [conventionCode, setConventionCode] = useState("")
+  const [isCheckingCode, setIsCheckingCode] = useState(false)
+  const [appliedConvention, setAppliedConvention] = useState<Convention | null>(null)
   const supabase = createClientComponentClient()
   const router = useRouter()
 
@@ -69,35 +78,41 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   }
 
   const handleApplyConvention = async () => {
-    if (!conventionCode) {
+    if (!conventionCode.trim()) {
       toast.error("Inserisci un codice convenzione")
       return
     }
 
-    setIsApplyingConvention(true)
+    setIsCheckingCode(true)
     try {
-      const { data: conventions, error } = await supabase
+      const { data: convention, error } = await supabase
         .from('conventions')
         .select('*')
         .eq('code', conventionCode)
         .eq('is_active', true)
         .single()
 
-      if (error || !conventions) {
+      if (error || !convention) {
         toast.error("Codice convenzione non valido")
         return
       }
 
+      setAppliedConvention(convention)
+      const discountedPrice = formData.finalPrice - (formData.finalPrice * convention.discount_percentage / 100)
+      
       onSubmit({
         ...formData,
-        conventionCode,
-        conventionDiscount: conventions.discount_percentage
+        conventionCode: convention.code,
+        conventionDiscount: convention.discount_percentage,
+        finalPrice: discountedPrice
       })
+
+      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
     } catch (error) {
       console.error('Errore:', error)
-      toast.error("Errore nell'applicazione della convenzione")
+      toast.error("Errore nella verifica del codice")
     } finally {
-      setIsApplyingConvention(false)
+      setIsCheckingCode(false)
     }
   }
 
@@ -174,19 +189,26 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
             <Button 
               variant="outline"
               onClick={handleApplyConvention}
-              disabled={isApplyingConvention}
+              disabled={isCheckingCode || !!appliedConvention}
             >
-              {isApplyingConvention ? "Verifica..." : "Applica"}
+              {isCheckingCode ? "Verifica..." : "Applica"}
             </Button>
           </div>
+          {appliedConvention && (
+            <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+              <p className="text-sm text-green-600">
+                Sconto del {appliedConvention.discount_percentage}% applicato
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="pt-4 border-t mt-6">
           <h3 className="font-medium">Totale da Pagare</h3>
           <p className="text-2xl font-bold">€{formData.finalPrice.toFixed(2)}</p>
-          {formData.conventionDiscount && formData.conventionDiscount > 0 && (
+          {appliedConvention && (
             <p className="text-sm text-green-600 mt-1">
-              Sconto convenzione applicato: {formData.conventionDiscount}%
+              Risparmio: €{((formData.finalPrice * appliedConvention.discount_percentage / 100)).toFixed(2)}
             </p>
           )}
         </div>

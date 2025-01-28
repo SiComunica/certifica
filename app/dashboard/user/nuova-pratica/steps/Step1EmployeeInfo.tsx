@@ -12,7 +12,8 @@ import { toast } from "sonner"
 interface ContractType {
   id: number
   name: string
-  threshold_value: number  // Valore soglia (es. 20.000)
+  threshold_value: number  // es. 20000 per contratti premium
+  is_value_added: boolean  // flag per contratti a valore aggiunto
 }
 
 interface PriceRange {
@@ -106,7 +107,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     
     // Calcola 1.5% sul valore eccedente la soglia
     const selectedContract = contractTypes.find(c => c.id === parseInt(contractTypeId))
-    if (selectedContract && value > selectedContract.threshold_value) {
+    if (selectedContract?.is_value_added && value > selectedContract.threshold_value) {
       const excessValue = value - selectedContract.threshold_value
       const additionalValue = excessValue * 0.015 // 1.5%
       price += additionalValue
@@ -206,10 +207,10 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
         {form.contractType && contractTypes.find(c => 
           c.id === parseInt(form.contractType) && 
-          c.threshold_value > 0
+          c.is_value_added
         ) && (
-          <div>
-            <Label htmlFor="contractValue">Valore Contratto</Label>
+          <div className="space-y-2">
+            <Label htmlFor="contractValue">Valore del Contratto</Label>
             <Input
               id="contractValue"
               type="number"
@@ -218,19 +219,22 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 ...form, 
                 contractValue: parseFloat(e.target.value) || 0 
               })}
-              placeholder={`Inserisci valore se superiore a €${contractTypes.find(c => 
-                c.id === parseInt(form.contractType)
-              )?.threshold_value.toLocaleString()}`}
-              className="mt-1"
+              placeholder="Inserisci il valore del contratto"
+              required
             />
             {form.contractValue > 0 && (
               <div className="mt-2 p-4 bg-gray-50 rounded-md space-y-2">
+                <p className="text-sm">
+                  Valore base: €{contractTypes.find(c => 
+                    c.id === parseInt(form.contractType)
+                  )?.threshold_value.toLocaleString()}
+                </p>
                 <p className="text-sm">
                   Valore eccedente: €{(form.contractValue - (contractTypes.find(c => 
                     c.id === parseInt(form.contractType)
                   )?.threshold_value || 0)).toLocaleString()}
                 </p>
-                <p className="text-sm">
+                <p className="text-sm font-medium">
                   Maggiorazione 1.5%: €{((form.contractValue - (contractTypes.find(c => 
                     c.id === parseInt(form.contractType)
                   )?.threshold_value || 0)) * 0.015).toLocaleString()}
