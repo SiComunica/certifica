@@ -1,5 +1,28 @@
 import { NextResponse } from 'next/server'
 
+async function getEasyCommerceToken() {
+  const response = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      Username: "[App esterna]",  // Esattamente come nella documentazione
+      Password: "XXXX"           // Esattamente come nella documentazione
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Errore auth:', errorText)
+    throw new Error(`Errore nell'ottenere il token: ${response.status} ${errorText}`)
+  }
+
+  const data = await response.json()
+  console.log('Risposta token:', data)  // Per vedere cosa riceviamo
+  return data  // Dovrebbe essere un JWT token come nell'esempio della documentazione
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
