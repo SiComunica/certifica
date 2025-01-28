@@ -12,7 +12,7 @@ import { toast } from "sonner"
 interface ContractType {
   id: number
   name: string
-  requires_value: boolean
+  threshold_value: number  // Valore soglia (es. 20.000)
 }
 
 interface PriceRange {
@@ -52,6 +52,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     contractValue: formData.contractValue || 0,
     conventionCode: formData.conventionCode || "",
     isRenewal: formData.isRenewal || false,
+    isOdcec: formData.isOdcec || false,
     quantity: formData.quantity || 1,
   })
 
@@ -95,6 +96,7 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const calculatePrice = (contractTypeId: string, value: number = 0) => {
     const priceRange = priceRanges.find(p => 
       p.contract_type_id === parseInt(contractTypeId) &&
+      p.is_odcec === form.isOdcec &&
       p.is_renewal === form.isRenewal
     )
 
@@ -102,18 +104,12 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
     let price = priceRange.base_price
     
-    // Calcola 1.5% sul valore aggiunto se presente
+    // Calcola 1.5% sul valore eccedente la soglia
     const selectedContract = contractTypes.find(c => c.id === parseInt(contractTypeId))
-    if (selectedContract?.requires_value && value > 0) {
-      const additionalValue = value * 0.015 // 1.5%
+    if (selectedContract && value > selectedContract.threshold_value) {
+      const excessValue = value - selectedContract.threshold_value
+      const additionalValue = excessValue * 0.015 // 1.5%
       price += additionalValue
-    }
-
-    // Applica sconto convenzione se presente
-    const selectedConvention = conventions.find(c => c.code === form.conventionCode)
-    if (selectedConvention) {
-      const discount = price * (selectedConvention.discount_percentage / 100)
-      price -= discount
     }
 
     return price
@@ -128,8 +124,8 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     }
 
     const selectedContract = contractTypes.find(c => c.id === parseInt(form.contractType))
-    if (selectedContract?.requires_value && !form.contractValue) {
-      toast.error("Inserisci il valore del contratto")
+    if (selectedContract && selectedContract.threshold_value > 0 && form.contractValue <= selectedContract.threshold_value) {
+      toast.error("Il valore del contratto deve essere superiore alla soglia")
       return
     }
 
@@ -183,21 +179,34 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           <Label>Tipo Contratto</Label>
           <RadioGroup
             value={form.contractType}
-            onValueChange={(value) => setForm({ ...form, contractType: value })}
+            onValueChange={(value) => {
+              setForm({ 
+                ...form, 
+                contractType: value,
+                contractValue: 0  // Reset valore quando cambia contratto
+              })
+            }}
             className="space-y-2"
           >
             {contractTypes.map((type) => (
               <div key={type.id} className="flex items-center space-x-2">
                 <RadioGroupItem value={type.id.toString()} id={`contract-${type.id}`} />
-                <Label htmlFor={`contract-${type.id}`}>{type.name}</Label>
+                <Label htmlFor={`contract-${type.id}`}>
+                  {type.name}
+                  {type.threshold_value > 0 && (
+                    <span className="text-sm text-gray-500 ml-2">
+                      (Soglia: €{type.threshold_value.toLocaleString()})
+                    </span>
+                  )}
+                </Label>
               </div>
             ))}
           </RadioGroup>
         </div>
 
-        {contractTypes.find(c => 
+        {form.contractType && contractTypes.find(c => 
           c.id === parseInt(form.contractType) && 
-          c.requires_value
+          c.threshold_value > 0
         ) && (
           <div>
             <Label htmlFor="contractValue">Valore Contratto</Label>
@@ -209,13 +218,25 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
                 ...form, 
                 contractValue: parseFloat(e.target.value) || 0 
               })}
-              placeholder="Inserisci il valore del contratto"
-              required
+              placeholder={`Inserisci valore se superiore a €${contractTypes.find(c => 
+                c.id === parseInt(form.contractType)
+              )?.threshold_value.toLocaleString()}`}
               className="mt-1"
             />
-            <p className="text-sm text-gray-500 mt-1">
-              Verrà applicato l'1.5% sul valore inserito
-            </p>
+            {form.contractValue > 0 && (
+              <div className="mt-2 p-4 bg-gray-50 rounded-md space-y-2">
+                <p className="text-sm">
+                  Valore eccedente: €{(form.contractValue - (contractTypes.find(c => 
+                    c.id === parseInt(form.contractType)
+                  )?.threshold_value || 0)).toLocaleString()}
+                </p>
+                <p className="text-sm">
+                  Maggiorazione 1.5%: €{((form.contractValue - (contractTypes.find(c => 
+                    c.id === parseInt(form.contractType)
+                  )?.threshold_value || 0)) * 0.015).toLocaleString()}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -264,16 +285,6 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             <p className="text-lg font-semibold">
               Prezzo Calcolato: €{calculatePrice(form.contractType, form.contractValue).toFixed(2)}
             </p>
-            {form.contractValue > 0 && (
-              <p className="text-sm text-gray-600">
-                Include 1.5% su €{form.contractValue.toFixed(2)}: €{(form.contractValue * 0.015).toFixed(2)}
-              </p>
-            )}
-            {form.conventionCode && (
-              <p className="text-sm text-gray-600">
-                Sconto convenzione: {conventions.find(c => c.code === form.conventionCode)?.discount_percentage}%
-              </p>
-            )}
           </div>
         )}
       </div>

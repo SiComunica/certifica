@@ -9,32 +9,33 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
+interface FormData {
+  employeeName: string
+  fiscalCode: string
+  contractType: string
+  contractValue: number
+  conventionCode?: string
+  conventionDiscount?: number
+  isRenewal: boolean
+  isOdcec: boolean
+  quantity: number
+  contractTypeName: string
+  practiceId: string
+  documents: Record<string, string>
+  finalPrice: number
+}
+
 interface Props {
-  formData: {
-    employeeName: string
-    fiscalCode: string
-    contractType: string
-    contractValue: number
-    isOdcec: boolean
-    isRenewal: boolean
-    quantity: number
-    contractTypeName: string
-    practiceId: string
-    email?: string
-    conventionCode?: string
-    conventionDiscount?: number
-    documents?: Record<string, string>
-    finalPrice: number
-  }
-  onSubmit: (data: any) => void
+  formData: FormData
+  onSubmit: (data: FormData) => void
   onBack: () => void
 }
 
 export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [finalPrice, setFinalPrice] = useState(0)
-  const [conventioneCode, setConventioneCode] = useState("")
-  const [discountApplied, setDiscountApplied] = useState(false)
+  const [conventionCode, setConventionCode] = useState(formData.conventionCode || "")
+  const [isApplyingConvention, setIsApplyingConvention] = useState(false)
   const supabase = createClientComponentClient()
   const router = useRouter()
 
@@ -67,37 +68,36 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     }
   }
 
-  const verifyConventionCode = async () => {
+  const handleApplyConvention = async () => {
+    if (!conventionCode) {
+      toast.error("Inserisci un codice convenzione")
+      return
+    }
+
+    setIsApplyingConvention(true)
     try {
-      setIsLoading(true)
-      const { data: convention } = await supabase
+      const { data: conventions, error } = await supabase
         .from('conventions')
         .select('*')
-        .eq('code', conventioneCode)
+        .eq('code', conventionCode)
+        .eq('is_active', true)
         .single()
 
-      if (convention) {
-        // Verifichiamo che la convenzione sia ancora valida
-        const now = new Date()
-        const expiryDate = new Date(convention.expiry_date)
-        
-        if (expiryDate > now && convention.is_active) {
-          // Applichiamo lo sconto
-          const discountedPrice = finalPrice * (1 - convention.discount_percentage / 100)
-          setFinalPrice(discountedPrice)
-          setDiscountApplied(true)
-          toast.success("Codice convenzione applicato con successo!")
-        } else {
-          toast.error("Codice convenzione scaduto o non più valido")
-        }
-      } else {
+      if (error || !conventions) {
         toast.error("Codice convenzione non valido")
+        return
       }
+
+      onSubmit({
+        ...formData,
+        conventionCode,
+        conventionDiscount: conventions.discount_percentage
+      })
     } catch (error) {
-      console.error('Errore verifica convenzione:', error)
-      toast.error("Errore nella verifica del codice convenzione")
+      console.error('Errore:', error)
+      toast.error("Errore nell'applicazione della convenzione")
     } finally {
-      setIsLoading(false)
+      setIsApplyingConvention(false)
     }
   }
 
@@ -108,7 +108,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       // Salviamo la pratica come pending_payment
       await supabase.from('practices').update({
         status: 'pending_payment',
-        convention_code: discountApplied ? conventioneCode : null,
+        convention_code: conventionCode,
         final_price: finalPrice
       }).eq('id', formData.practiceId)
 
@@ -159,11 +159,36 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
               ))}
             </ul>
           </div>
+        </div>
 
-          <div className="pt-4 border-t">
-            <h3 className="font-medium">Totale da Pagare</h3>
-            <p className="text-2xl font-bold">€{formData.finalPrice.toFixed(2)}</p>
+        <div className="mt-6 pt-4 border-t">
+          <h3 className="font-medium mb-2">Hai un codice convenzione?</h3>
+          <div className="flex space-x-2">
+            <Input
+              type="text"
+              value={conventionCode}
+              onChange={(e) => setConventionCode(e.target.value)}
+              placeholder="Inserisci codice"
+              className="max-w-xs"
+            />
+            <Button 
+              variant="outline"
+              onClick={handleApplyConvention}
+              disabled={isApplyingConvention}
+            >
+              {isApplyingConvention ? "Verifica..." : "Applica"}
+            </Button>
           </div>
+        </div>
+
+        <div className="pt-4 border-t mt-6">
+          <h3 className="font-medium">Totale da Pagare</h3>
+          <p className="text-2xl font-bold">€{formData.finalPrice.toFixed(2)}</p>
+          {formData.conventionDiscount && formData.conventionDiscount > 0 && (
+            <p className="text-sm text-green-600 mt-1">
+              Sconto convenzione applicato: {formData.conventionDiscount}%
+            </p>
+          )}
         </div>
       </div>
 
