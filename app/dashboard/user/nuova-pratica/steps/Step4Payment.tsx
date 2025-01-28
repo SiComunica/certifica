@@ -138,6 +138,11 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       console.log('Risposta ricevuta:', data)
 
       if (data.error) {
+        console.error('Dettagli errore:', {
+          message: data.error,
+          details: data.details,
+          stack: data.stack
+        })
         throw new Error(data.error)
       }
 
@@ -161,7 +166,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       window.location.href = paymentUrl
 
     } catch (error: unknown) {
-      console.error('Errore:', error)
+      console.error('Errore completo:', error)
       const errorMessage = error instanceof Error ? error.message : "Errore durante l'avvio del pagamento"
       toast.error(errorMessage)
       setIsProcessing(false)
