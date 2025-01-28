@@ -8,22 +8,35 @@ import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
 
-interface FormData {
+interface BaseFormData {
   employeeName: string
   fiscalCode: string
   contractType: string
+  contractTypeName: string
   contractValue: number
+  quantity: number
+  isOdcec: boolean
+  isRenewal: boolean
+  documents: Record<string, string>
+}
+
+interface PriceInfo {
+  id: number
+  contract_type_id: number
+  base_price: number
+  is_percentage: boolean
+  percentage_value: number | null
+  threshold_value: number | null
+  min_quantity: number
+  is_odcec: boolean
+  is_renewal: boolean
+}
+
+interface FormData extends BaseFormData {
+  practiceId: string
+  priceInfo: PriceInfo
   conventionCode?: string
   conventionDiscount?: number
-  isRenewal: boolean
-  isOdcec: boolean
-  quantity: number
-  contractTypeName: string
-  practiceId: string
-  documents: Record<string, string>
-  finalPrice: number
-  companyId?: string
-  companyName?: string
 }
 
 interface PracticeData extends FormData {
@@ -38,18 +51,24 @@ export default function NuovaPraticaPage() {
     employeeName: "",
     fiscalCode: "",
     contractType: "",
-    contractValue: 0,
-    conventionCode: "",
-    conventionDiscount: 0,
-    isRenewal: false,
-    isOdcec: false,
-    quantity: 1,
     contractTypeName: "",
+    contractValue: 0,
+    quantity: 1,
+    isOdcec: false,
+    isRenewal: false,
     practiceId: "",
-    documents: {},
-    finalPrice: 0,
-    companyId: "",
-    companyName: ""
+    priceInfo: {
+      id: 0,
+      contract_type_id: 0,
+      base_price: 0,
+      is_percentage: false,
+      percentage_value: null,
+      threshold_value: null,
+      min_quantity: 1,
+      is_odcec: false,
+      is_renewal: false
+    },
+    documents: {}
   })
 
   const router = useRouter()
