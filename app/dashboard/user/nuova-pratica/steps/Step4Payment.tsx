@@ -112,18 +112,18 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     try {
       setIsProcessing(true)
 
-      // 1. Chiamiamo direttamente l'API per generare l'avviso di pagamento
-      const response = await fetch(`https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso/${formData.contractType}/${Math.round(totalPrice * 100)}`, {
+      // 1. Chiamiamo la nostra API invece di Easy Commerce direttamente
+      const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          nomecognome: formData.employeeName,
-          codicefiscale: formData.fiscalCode,
-          email: formData.email || '',  // Se non c'è email, Easy Commerce userà quella di default
-          codiceprodotto: formData.contractType,
-          prezzo: Math.round(totalPrice * 100) // Convertiamo in centesimi
+          contractType: formData.contractType,
+          totalPrice,
+          employeeName: formData.employeeName,
+          fiscalCode: formData.fiscalCode,
+          email: formData.email
         })
       })
 
