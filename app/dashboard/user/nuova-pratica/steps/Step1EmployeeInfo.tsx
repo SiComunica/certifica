@@ -8,22 +8,22 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ContractType {
   id: number
   name: string
-  threshold_value: number  // es. 20000 per contratti premium
-  is_value_added: boolean  // flag per contratti a valore aggiunto
+  code: string
+  description: string
+  is_premium?: boolean  // Per identificare contratti premium
+  threshold_value: number  // Aggiunto campo per la soglia (es. 20000)
 }
 
 interface PriceRange {
   id: number
   contract_type_id: number
   base_price: number
-  is_percentage: boolean
-  percentage_value: number
-  threshold_value: number
-  max_price: number
+  min_quantity: number
   is_odcec: boolean
   is_renewal: boolean
 }
@@ -36,8 +36,20 @@ interface Convention {
   is_active: boolean
 }
 
+interface PriceInfo extends PriceRange {
+  finalPrice: number
+}
+
 interface Props {
-  formData: any
+  formData: {
+    employeeName?: string
+    fiscalCode?: string
+    contractType?: string
+    contractValue?: number
+    isOdcec?: boolean
+    isRenewal?: boolean
+    quantity?: number
+  }
   onSubmit: (data: any) => void
 }
 
@@ -46,16 +58,16 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([])
   const [conventions, setConventions] = useState<Convention[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [form, setForm] = useState({
+  const [employeeData, setEmployeeData] = useState({
     employeeName: formData.employeeName || "",
     fiscalCode: formData.fiscalCode || "",
     contractType: formData.contractType || "",
     contractValue: formData.contractValue || 0,
-    conventionCode: formData.conventionCode || "",
-    isRenewal: formData.isRenewal || false,
     isOdcec: formData.isOdcec || false,
-    quantity: formData.quantity || 1,
+    isRenewal: formData.isRenewal || false,
+    quantity: formData.quantity || 1
   })
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
 
   const supabase = createClientComponentClient()
 
@@ -94,59 +106,80 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
     }
   }
 
-  const calculatePrice = (contractTypeId: string, value: number = 0) => {
-    const priceRange = priceRanges.find(p => 
-      p.contract_type_id === parseInt(contractTypeId) &&
-      p.is_odcec === form.isOdcec &&
-      p.is_renewal === form.isRenewal
-    )
-
-    if (!priceRange) return 0
-
-    let price = priceRange.base_price
+  const calculatePremiumPrice = (basePrice: number, contractValue: number) => {
+    if (contractValue <= 20000) return basePrice
     
-    // Calcola 1.5% sul valore eccedente la soglia
-    const selectedContract = contractTypes.find(c => c.id === parseInt(contractTypeId))
-    if (selectedContract?.is_value_added && value > selectedContract.threshold_value) {
-      const excessValue = value - selectedContract.threshold_value
-      const additionalValue = excessValue * 0.015 // 1.5%
-      price += additionalValue
+    const excessValue = contractValue - 20000
+    const additionalFee = excessValue * 0.015 // 1.5% sul valore eccedente
+    return basePrice + additionalFee
+  }
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      if (!employeeData.contractType) return
+
+      try {
+        const { data: priceRange, error } = await supabase
+          .from('price_ranges')
+          .select('*')
+          .eq('contract_type_id', employeeData.contractType)
+          .eq('is_odcec', employeeData.isOdcec)
+          .eq('is_renewal', employeeData.isRenewal)
+          .single()
+
+        if (error) throw error
+
+        const selectedContract = contractTypes.find(
+          ct => ct.id.toString() === employeeData.contractType
+        )
+
+        let finalPrice = priceRange.base_price
+        if (selectedContract?.is_premium && employeeData.contractValue > 0) {
+          finalPrice = calculatePremiumPrice(
+            priceRange.base_price,
+            employeeData.contractValue
+          )
+        }
+
+        setPriceInfo({ ...priceRange, finalPrice })
+      } catch (error) {
+        console.error('Errore:', error)
+      }
     }
 
-    return price
-  }
+    fetchPrice()
+  }, [employeeData.contractType, employeeData.contractValue])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!form.employeeName || !form.fiscalCode || !form.contractType) {
+    if (!employeeData.employeeName || !employeeData.fiscalCode || !employeeData.contractType) {
       toast.error("Compila tutti i campi obbligatori")
       return
     }
 
-    const selectedContract = contractTypes.find(c => c.id === parseInt(form.contractType))
-    if (selectedContract && selectedContract.threshold_value > 0 && form.contractValue <= selectedContract.threshold_value) {
+    const selectedContract = contractTypes.find(c => c.id === parseInt(employeeData.contractType))
+    if (selectedContract && selectedContract.threshold_value > 0 && employeeData.contractValue <= selectedContract.threshold_value) {
       toast.error("Il valore del contratto deve essere superiore alla soglia")
       return
     }
 
-    const finalPrice = calculatePrice(form.contractType, form.contractValue)
-    const selectedConvention = conventions.find(c => c.code === form.conventionCode)
+    const selectedConvention = conventions.find(c => c.code === employeeData.contractType)
 
     onSubmit({
-      ...form,
+      ...employeeData,
       contractTypeName: selectedContract?.name,
-      finalPrice,
+      finalPrice: priceInfo?.finalPrice || 0,
       conventionDiscount: selectedConvention?.discount_percentage || 0
     })
   }
 
   const handleValueChange = (value: string) => {
-    setForm({ ...form, contractType: value })
+    setEmployeeData({ ...employeeData, contractType: value })
   }
 
   const handleCheckedChange = (field: string) => (checked: boolean) => {
-    setForm({ ...form, [field]: checked })
+    setEmployeeData({ ...employeeData, [field]: checked })
   }
 
   if (isLoading) {
@@ -160,8 +193,8 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           <Label htmlFor="employeeName">Nome e Cognome Dipendente</Label>
           <Input
             id="employeeName"
-            value={form.employeeName}
-            onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
+            value={employeeData.employeeName}
+            onChange={(e) => setEmployeeData({ ...employeeData, employeeName: e.target.value })}
             required
           />
         </div>
@@ -170,75 +203,63 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
           <Label htmlFor="fiscalCode">Codice Fiscale</Label>
           <Input
             id="fiscalCode"
-            value={form.fiscalCode}
-            onChange={(e) => setForm({ ...form, fiscalCode: e.target.value })}
+            value={employeeData.fiscalCode}
+            onChange={(e) => setEmployeeData({ ...employeeData, fiscalCode: e.target.value })}
             required
           />
         </div>
 
-        <div>
-          <Label>Tipo Contratto</Label>
-          <RadioGroup
-            value={form.contractType}
+        <div className="grid gap-2">
+          <Label htmlFor="contractType">Tipo Contratto *</Label>
+          <Select 
+            value={employeeData.contractType}
             onValueChange={(value) => {
-              setForm({ 
-                ...form, 
+              const selectedContract = contractTypes.find(ct => ct.id.toString() === value)
+              setEmployeeData(prev => ({ 
+                ...prev, 
                 contractType: value,
-                contractValue: 0  // Reset valore quando cambia contratto
-              })
+                contractValue: 0 // Reset valore quando cambia contratto
+              }))
             }}
-            className="space-y-2"
           >
-            {contractTypes.map((type) => (
-              <div key={type.id} className="flex items-center space-x-2">
-                <RadioGroupItem value={type.id.toString()} id={`contract-${type.id}`} />
-                <Label htmlFor={`contract-${type.id}`}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona tipo contratto" />
+            </SelectTrigger>
+            <SelectContent>
+              {contractTypes.map((type) => (
+                <SelectItem key={type.id} value={type.id.toString()}>
                   {type.name}
-                  {type.threshold_value > 0 && (
-                    <span className="text-sm text-gray-500 ml-2">
-                      (Soglia: €{type.threshold_value.toLocaleString()})
-                    </span>
-                  )}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {form.contractType && contractTypes.find(c => 
-          c.id === parseInt(form.contractType) && 
-          c.is_value_added
+        {employeeData.contractType && contractTypes.find(
+          ct => ct.id.toString() === employeeData.contractType && ct.is_premium
         ) && (
-          <div className="space-y-2">
-            <Label htmlFor="contractValue">Valore del Contratto</Label>
+          <div className="grid gap-2">
+            <Label htmlFor="contractValue">Valore del Contratto *</Label>
             <Input
               id="contractValue"
               type="number"
-              value={form.contractValue || ''}
-              onChange={(e) => setForm({ 
-                ...form, 
-                contractValue: parseFloat(e.target.value) || 0 
-              })}
-              placeholder="Inserisci il valore del contratto"
+              min="20000"
+              step="1000"
+              value={employeeData.contractValue || ''}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value)
+                setEmployeeData(prev => ({ 
+                  ...prev, 
+                  contractValue: value 
+                }))
+              }}
+              placeholder="Inserisci il valore del contratto (min. €20.000)"
               required
             />
-            {form.contractValue > 0 && (
-              <div className="mt-2 p-4 bg-gray-50 rounded-md space-y-2">
-                <p className="text-sm">
-                  Valore base: €{contractTypes.find(c => 
-                    c.id === parseInt(form.contractType)
-                  )?.threshold_value.toLocaleString()}
-                </p>
-                <p className="text-sm">
-                  Valore eccedente: €{(form.contractValue - (contractTypes.find(c => 
-                    c.id === parseInt(form.contractType)
-                  )?.threshold_value || 0)).toLocaleString()}
-                </p>
-                <p className="text-sm font-medium">
-                  Maggiorazione 1.5%: €{((form.contractValue - (contractTypes.find(c => 
-                    c.id === parseInt(form.contractType)
-                  )?.threshold_value || 0)) * 0.015).toLocaleString()}
-                </p>
+            {employeeData.contractValue > 20000 && (
+              <div className="text-sm text-gray-600">
+                <p>Valore eccedente €20.000: €{(employeeData.contractValue - 20000).toLocaleString()}</p>
+                <p>Maggiorazione 1,5%: €{((employeeData.contractValue - 20000) * 0.015).toLocaleString()}</p>
               </div>
             )}
           </div>
@@ -250,8 +271,8 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             id="quantity"
             type="number"
             min="1"
-            value={form.quantity}
-            onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) })}
+            value={employeeData.quantity}
+            onChange={(e) => setEmployeeData({ ...employeeData, quantity: parseInt(e.target.value) })}
             required
           />
         </div>
@@ -261,8 +282,8 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
             <Label htmlFor="convention">Convenzione</Label>
             <select
               id="convention"
-              value={form.conventionCode}
-              onChange={(e) => setForm({ ...form, conventionCode: e.target.value })}
+              value={employeeData.contractType}
+              onChange={(e) => setEmployeeData({ ...employeeData, contractType: e.target.value })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
             >
               <option value="">Nessuna convenzione</option>
@@ -278,16 +299,16 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
         <div className="flex items-center space-x-2">
           <Switch
             id="isRenewal"
-            checked={form.isRenewal}
+            checked={employeeData.isRenewal}
             onCheckedChange={handleCheckedChange('isRenewal')}
           />
           <Label htmlFor="isRenewal">Rinnovo</Label>
         </div>
 
-        {form.contractType && (
+        {employeeData.contractType && (
           <div className="p-4 bg-gray-50 rounded-md space-y-2">
             <p className="text-lg font-semibold">
-              Prezzo Calcolato: €{calculatePrice(form.contractType, form.contractValue).toFixed(2)}
+              Prezzo Calcolato: €{priceInfo?.finalPrice.toFixed(2) || ''}
             </p>
           </div>
         )}

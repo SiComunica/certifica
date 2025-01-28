@@ -13,7 +13,6 @@ interface Convention {
   id: string
   code: string
   discount_percentage: number
-  description: string
   is_active: boolean
 }
 
@@ -34,56 +33,41 @@ interface FormData {
 }
 
 interface Props {
-  formData: FormData
-  onSubmit: (data: FormData) => void
+  formData: {
+    employeeName: string
+    fiscalCode: string
+    contractType: string
+    contractTypeName: string
+    contractValue: number
+    finalPrice: number
+    conventionCode?: string
+    conventionDiscount?: number
+    quantity: number
+    isOdcec: boolean
+    isRenewal: boolean
+    practiceId: string
+    documents: Record<string, string>
+  }
+  onSubmit: (data: any) => void
   onBack: () => void
 }
 
 export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const [isLoading, setIsLoading] = useState(false)
-  const [finalPrice, setFinalPrice] = useState(0)
+  const [finalPrice, setFinalPrice] = useState(formData.finalPrice || 0)
   const [conventionCode, setConventionCode] = useState("")
-  const [isCheckingCode, setIsCheckingCode] = useState(false)
-  const [appliedConvention, setAppliedConvention] = useState<Convention | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [appliedDiscount, setAppliedDiscount] = useState<number | null>(null)
   const supabase = createClientComponentClient()
   const router = useRouter()
 
-  useEffect(() => {
-    calculatePrice()
-  }, [formData])
-
-  const calculatePrice = async () => {
-    try {
-      const { data: priceRange } = await supabase
-        .from('price_ranges')
-        .select('*')
-        .eq('contract_type_id', formData.contractType)
-        .eq('is_odcec', formData.isOdcec)
-        .eq('is_renewal', formData.isRenewal)
-        .single()
-
-      if (priceRange) {
-        let price = priceRange.base_price
-        if (priceRange.is_percentage && formData.contractValue > priceRange.threshold_value) {
-          const excess = formData.contractValue - priceRange.threshold_value
-          price += (excess * priceRange.percentage_value / 100)
-        }
-        price *= formData.quantity
-        setFinalPrice(price)
-      }
-    } catch (error) {
-      console.error('Errore calcolo prezzo:', error)
-      toast.error("Errore nel calcolo del prezzo")
-    }
-  }
-
-  const handleApplyConvention = async () => {
+  const verifyConvention = async () => {
     if (!conventionCode.trim()) {
       toast.error("Inserisci un codice convenzione")
       return
     }
 
-    setIsCheckingCode(true)
+    setIsVerifying(true)
     try {
       const { data: convention, error } = await supabase
         .from('conventions')
@@ -97,22 +81,18 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         return
       }
 
-      setAppliedConvention(convention)
-      const discountedPrice = formData.finalPrice - (formData.finalPrice * convention.discount_percentage / 100)
-      
-      onSubmit({
-        ...formData,
-        conventionCode: convention.code,
-        conventionDiscount: convention.discount_percentage,
-        finalPrice: discountedPrice
-      })
+      const discountAmount = (formData.finalPrice * convention.discount_percentage) / 100
+      const newPrice = formData.finalPrice - discountAmount
 
+      setFinalPrice(newPrice)
+      setAppliedDiscount(convention.discount_percentage)
       toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
+
     } catch (error) {
       console.error('Errore:', error)
       toast.error("Errore nella verifica del codice")
     } finally {
-      setIsCheckingCode(false)
+      setIsVerifying(false)
     }
   }
 
@@ -135,6 +115,11 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       toast.error("Errore durante il redirect al pagamento")
       setIsLoading(false)
     }
+  }
+
+  const getDocumentName = (key: string): string => {
+    const fileName = formData.documents[key]
+    return typeof fileName === 'string' ? fileName.split('/').pop() || '' : ''
   }
 
   return (
@@ -170,45 +155,45 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
             <h3 className="font-medium">Documenti Allegati</h3>
             <ul className="list-disc list-inside text-sm text-gray-600">
               {Object.entries(formData.documents || {}).map(([id, fileName]) => (
-                <li key={id}>{fileName.toString().split('/').pop()}</li>
+                <li key={id}>{getDocumentName(id)}</li>
               ))}
             </ul>
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t">
-          <h3 className="font-medium mb-2">Hai un codice convenzione?</h3>
-          <div className="flex space-x-2">
+        <div className="mt-6 border-t pt-4">
+          <h3 className="font-medium mb-4">Codice Convenzione</h3>
+          <div className="flex gap-2">
             <Input
               type="text"
               value={conventionCode}
               onChange={(e) => setConventionCode(e.target.value)}
-              placeholder="Inserisci codice"
-              className="max-w-xs"
+              placeholder="Inserisci il codice convenzione"
+              disabled={!!appliedDiscount}
             />
-            <Button 
-              variant="outline"
-              onClick={handleApplyConvention}
-              disabled={isCheckingCode || !!appliedConvention}
+            <Button
+              onClick={verifyConvention}
+              disabled={isVerifying || !!appliedDiscount}
             >
-              {isCheckingCode ? "Verifica..." : "Applica"}
+              {isVerifying ? "Verifica..." : "Applica"}
             </Button>
           </div>
-          {appliedConvention && (
-            <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-              <p className="text-sm text-green-600">
-                Sconto del {appliedConvention.discount_percentage}% applicato
+          
+          {appliedDiscount && (
+            <div className="mt-2 p-3 bg-green-50 rounded">
+              <p className="text-green-600">
+                Sconto del {appliedDiscount}% applicato
               </p>
             </div>
           )}
         </div>
 
-        <div className="pt-4 border-t mt-6">
+        <div className="mt-6 border-t pt-4">
           <h3 className="font-medium">Totale da Pagare</h3>
-          <p className="text-2xl font-bold">€{formData.finalPrice.toFixed(2)}</p>
-          {appliedConvention && (
-            <p className="text-sm text-green-600 mt-1">
-              Risparmio: €{((formData.finalPrice * appliedConvention.discount_percentage / 100)).toFixed(2)}
+          <p className="text-2xl font-bold">€{finalPrice.toFixed(2)}</p>
+          {appliedDiscount && (
+            <p className="text-sm text-green-600">
+              Risparmi: €{(formData.finalPrice - finalPrice).toFixed(2)}
             </p>
           )}
         </div>
@@ -218,7 +203,13 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         <Button variant="outline" onClick={onBack}>
           Indietro
         </Button>
-        <Button onClick={() => onSubmit(formData)}>
+        <Button 
+          onClick={() => onSubmit({ 
+            ...formData, 
+            finalPrice,
+            conventionDiscount: appliedDiscount 
+          })}
+        >
           Procedi al Pagamento
         </Button>
       </div>
