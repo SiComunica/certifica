@@ -102,6 +102,12 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
 
   const handlePayment = async () => {
     console.log("=== INIZIO PROCESSO PAGAMENTO FRONTEND ===")
+    console.log("Dati completi per il pagamento:", {
+      formData,
+      totalPrice,
+      productId: formData.productId,
+      priceInfo: formData.priceInfo
+    })
     
     if (!formData.productId) {
       console.error("ProductId mancante")
@@ -109,7 +115,7 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
     }
 
     if (!formData.priceInfo?.base) {
-      console.error("Prezzo base mancante")
+      console.error("Prezzo base mancante:", formData.priceInfo)
       return
     }
 
@@ -182,17 +188,22 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
   }
 
   useEffect(() => {
+    console.log("Step4Payment - FormData ricevuto:", formData)
+    console.log("Step4Payment - PriceInfo:", formData.priceInfo)
+
     if (formData.priceInfo) {
       const basePrice = formData.priceInfo.base || 0
       const quantity = formData.priceInfo.inputs.quantity || 1
       const total = basePrice * quantity * 1.22 // Includi IVA
-      setTotalPrice(total)
-      console.log("Dati prezzo:", {
+      
+      console.log("Calcolo prezzo:", {
         basePrice,
         quantity,
         total,
-        fullPriceInfo: formData.priceInfo
+        priceInfo: formData.priceInfo
       })
+      
+      setTotalPrice(total)
     }
   }, [formData.priceInfo])
 
