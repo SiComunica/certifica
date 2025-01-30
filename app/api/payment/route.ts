@@ -5,37 +5,29 @@ async function getEasyCommerceToken() {
     console.log('=== INIZIO AUTENTICAZIONE ===')
     
     const authBody = {
-      username: "App esterna",
-      password: "XXXX"
+      Username: "UniRoma2test",
+      Password: "XXXX" // Da sostituire con la password ricevuta via email
     }
-    console.log('Invio richiesta token con:', JSON.stringify(authBody, null, 2))
-
-    const authResponse = await fetch('https://uniupo.temposrl.it/easycommerce/api/auth/gettoken', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(authBody)
-    })
-
-    const authText = await authResponse.text()
-    console.log('Status auth:', authResponse.status)
-    console.log('Headers auth:', JSON.stringify(Object.fromEntries(authResponse.headers.entries()), null, 2))
-    console.log('Risposta auth:', authText)
+    
+    const authResponse = await fetch(
+      'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/auth/gettoken',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(authBody)
+      }
+    )
 
     if (!authResponse.ok) {
-      throw new Error(`Autenticazione fallita: ${authResponse.status} ${authText}`)
+      const errorText = await authResponse.text()
+      throw new Error(`Autenticazione fallita: ${authResponse.status} ${errorText}`)
     }
 
-    try {
-      const authData = JSON.parse(authText)
-      console.log('Token ottenuto:', authData)
-      return authData.token || authData
-    } catch (e) {
-      console.error('Errore parsing risposta auth:', e)
-      throw new Error(`Risposta auth non valida: ${authText}`)
-    }
+    const authData = await authResponse.json()
+    return authData.token
   } catch (error) {
     console.error('=== ERRORE AUTENTICAZIONE ===', error)
     throw error
@@ -44,57 +36,64 @@ async function getEasyCommerceToken() {
 
 export async function POST(request: Request) {
   try {
-    console.log('=== INIZIO RICHIESTA PAGAMENTO ===')
     const body = await request.json()
-    console.log('Dati ricevuti:', JSON.stringify(body, null, 2))
+    const { 
+      contractType,    // categoryId
+      productId,       // da aggiungere al form
+      quantity = 1,    // default a 1
+      totalPrice,
+      employeeName,
+      fiscalCode,
+      email,
+      // Aggiungere altri campi necessari per la fatturazione
+      companyName,
+      vatNumber,
+      companyFiscalCode,
+      address,
+      city,
+      postalCode,
+      country
+    } = body
 
-    // Otteniamo il token
+    // 1. Otteniamo il token
     const token = await getEasyCommerceToken()
-    console.log('Token ottenuto con successo')
 
-    const url = `https://uniupo.temposrl.it/easycommerce/api/GeneraAvviso/${body.contractType}/${Math.round(body.totalPrice * 100)}`
-    console.log('URL chiamata:', url)
-
-    const requestBody = {
-      nomecognome: body.employeeName,
-      codicefiscale: body.fiscalCode,
-      email: body.email || '',
-      codiceprodotto: body.contractType,
-      prezzo: Math.round(body.totalPrice * 100)
-    }
-    console.log('Body richiesta:', JSON.stringify(requestBody, null, 2))
-
-    const response = await fetch(url, {
+    // 2. Chiamiamo l'API5 per l'acquisto diretto
+    const shopUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${contractType}/${productId}/${quantity}/${Math.round(totalPrice * 100)}`
+    
+    const response = await fetch(shopUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        email,
+        codiceFiscale: fiscalCode,
+        nome: employeeName.split(' ')[0],
+        cognome: employeeName.split(' ')[1] || '',
+        // Dati fatturazione
+        ragioneSociale: companyName,
+        partitaIva: vatNumber,
+        codiceFiscaleAzienda: companyFiscalCode,
+        indirizzo: address,
+        citta: city,
+        cap: postalCode,
+        paese: country
+      })
     })
 
-    const responseText = await response.text()
-    console.log('Status risposta:', response.status)
-    console.log('Headers risposta:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2))
-    console.log('Risposta:', responseText)
-
     if (!response.ok) {
-      throw new Error(`Easy Commerce ha risposto con status ${response.status}: ${responseText}`)
+      const errorText = await response.text()
+      throw new Error(`Errore nell'acquisto: ${response.status} ${errorText}`)
     }
 
-    const data = JSON.parse(responseText)
-    console.log('Dati risposta:', JSON.stringify(data, null, 2))
-
+    const data = await response.json()
     return NextResponse.json(data)
   } catch (error: any) {
     console.error('=== ERRORE GENERALE ===', error)
     return NextResponse.json(
-      { 
-        error: error?.message || 'Errore nella generazione dell\'avviso di pagamento',
-        details: error?.toString(),
-        stack: error?.stack
-      },
+      { error: error?.message || 'Errore nel processo di acquisto' },
       { status: 500 }
     )
   }

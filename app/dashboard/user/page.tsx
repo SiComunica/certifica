@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
-import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -32,6 +32,7 @@ interface Practice {
   employee_fiscal_code: string
   submission_date: string
   notes: string
+  payment_receipt?: string
 }
 
 interface Notification {
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [practices, setPractices] = useState<Practice[]>([])
   const [filteredPractices, setFilteredPractices] = useState<Practice[]>([])
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
   
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -156,6 +158,63 @@ export default function DashboardPage() {
       router.push('/auth/login')
     } catch (error) {
       console.error('Errore durante il logout:', error)
+    }
+  }
+
+  const handleFileUpload = async (practiceId: string, file: File) => {
+    try {
+      setUploadingId(practiceId)
+      
+      // 1. Upload file
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${practiceId}-receipt.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file)
+
+      if (uploadError) throw uploadError
+
+      // 2. Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(fileName)
+
+      // 3. Update practice
+      const { error: updateError } = await supabase
+        .from('practices')
+        .update({ 
+          status: 'pending_approval',
+          payment_receipt: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', practiceId)
+
+      if (updateError) throw updateError
+
+      toast.success("Ricevuta caricata con successo")
+      loadPractices()
+
+    } catch (error) {
+      console.error('Errore nel caricamento:', error)
+      toast.error("Errore nel caricamento della ricevuta")
+    } finally {
+      setUploadingId(null)
+    }
+  }
+
+  const loadPractices = async () => {
+    try {
+      const { data: practicesData, error } = await supabase
+        .from('practices')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setPractices(practicesData || [])
+      setFilteredPractices(practicesData || [])
+    } catch (error) {
+      console.error('Errore nel caricamento pratiche:', error)
+      toast.error("Errore nel caricamento delle pratiche")
     }
   }
 
