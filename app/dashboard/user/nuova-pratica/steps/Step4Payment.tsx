@@ -108,10 +108,16 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
       return
     }
 
-    if (!formData.priceInfo?.base_price) {
+    if (!formData.priceInfo?.base) {
       console.error("Prezzo base mancante")
       return
     }
+
+    console.log("Procedendo al pagamento con:", {
+      productId: formData.productId,
+      price: totalPrice,
+      priceInfo: formData.priceInfo
+    })
 
     try {
       setIsProcessing(true)
@@ -125,7 +131,7 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
       }
 
       const paymentData = {
-        totalPrice: formData.priceInfo.base_price,
+        totalPrice: formData.priceInfo.base,
         productId: formData.productId,
         employeeName: formData.employeeName,
         fiscalCode: formData.fiscalCode,
@@ -176,80 +182,19 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
   }
 
   useEffect(() => {
-    const calculateTotal = async () => {
-      try {
-        let total = 0
-        const {
-          priceInfo,
-          contractValue,
-          quantity,
-          isOdcec,
-          isRenewal
-        } = formData
-
-        // Calcolo base
-        if (priceInfo.is_percentage && priceInfo.threshold_value && contractValue > 0) {
-          // Caso Contratto Premium
-          total = priceInfo.base_price
-          if (contractValue > priceInfo.threshold_value) {
-            const excess = contractValue - priceInfo.threshold_value
-            const percentageAmount = (excess * (priceInfo.percentage_value || 0)) / 100
-            total += percentageAmount
-          }
-        } else {
-          // Caso standard
-          total = priceInfo.base_price * (quantity || 1)
-        }
-
-        // Applica sconti quantità per ODCEC se applicabile
-        if (isOdcec) {
-          const { data: quantityDiscount } = await supabase
-            .from('price_ranges')
-            .select('*')
-            .is('contract_type_id', null)
-            .eq('is_odcec', true)
-            .lte('min_quantity', quantity || 1)
-            .order('min_quantity', { ascending: false })
-            .limit(1)
-
-          if (quantityDiscount?.[0]) {
-            console.log('Sconto ODCEC trovato:', quantityDiscount[0])
-            total = quantityDiscount[0].base_price * (quantity || 1)
-          }
-        }
-
-        // Applica sconto rinnovo se applicabile
-        if (isRenewal) {
-          total = total * 0.5 // 50% di sconto
-        }
-
-        // Applica IVA
-        const totalWithVAT = total * 1.22
-
-        console.log('Calcolo prezzo:', {
-          base: total,
-          withVAT: totalWithVAT,
-          inputs: {
-            isPercentage: priceInfo.is_percentage,
-            threshold: priceInfo.threshold_value,
-            contractValue,
-            basePrice: priceInfo.base_price,
-            quantity,
-            isOdcec,
-            isRenewal
-          }
-        })
-
-        setTotalPrice(totalWithVAT)
-
-      } catch (error) {
-        console.error('Errore nel calcolo del prezzo:', error)
-        toast.error("Errore nel calcolo del prezzo")
-      }
+    if (formData.priceInfo) {
+      const basePrice = formData.priceInfo.base || 0
+      const quantity = formData.priceInfo.inputs.quantity || 1
+      const total = basePrice * quantity * 1.22 // Includi IVA
+      setTotalPrice(total)
+      console.log("Dati prezzo:", {
+        basePrice,
+        quantity,
+        total,
+        fullPriceInfo: formData.priceInfo
+      })
     }
-
-    calculateTotal()
-  }, [formData])
+  }, [formData.priceInfo])
 
   useEffect(() => {
     const getUser = async () => {
