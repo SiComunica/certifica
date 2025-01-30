@@ -102,73 +102,45 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const handlePayment = async () => {
     try {
       setIsProcessing(true)
-
-      if (!userData?.id) {
-        throw new Error("Utente non autenticato")
-      }
-
-      // Recuperiamo i dati di fatturazione dal profilo
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userData.id)
-        .single()
-
-      if (profileError) {
-        throw new Error("Errore nel recupero dei dati di fatturazione")
-      }
-
-      if (!profileData) {
-        throw new Error("Dati di fatturazione non trovati")
-      }
-
-      const paymentData = {
-        contractType: formData.contractType,
-        productId: formData.productId,
+      console.log('Invio dati pagamento:', {
         totalPrice: formData.priceInfo.base_price,
-        employeeName: formData.employeeName,
-        fiscalCode: formData.fiscalCode,
-        email: formData.email,
-        // Dati fatturazione
-        companyName: profileData.company_name,
-        vatNumber: profileData.vat_number,
-        companyFiscalCode: profileData.company_fiscal_code,
-        address: profileData.address,
-        city: profileData.city,
-        postalCode: profileData.postal_code,
-        country: profileData.country
-      }
+        productId: formData.productId,
+        // Log altri dati
+        formData
+      })
 
       const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(paymentData)
+        body: JSON.stringify({
+          totalPrice: formData.priceInfo.base_price,
+          productId: formData.productId,
+          employeeName: formData.employeeName,
+          fiscalCode: formData.fiscalCode,
+          email: formData.email,
+          contractType: formData.contractType,
+          contractValue: formData.contractValue,
+          quantity: formData.quantity,
+          isOdcec: formData.isOdcec,
+          isRenewal: formData.isRenewal
+        })
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.message || "Errore durante l'avvio del pagamento")
+        const error = await response.json()
+        throw new Error(error.message || "Errore durante l'avvio del pagamento")
       }
 
-      // Aggiorna lo stato della pratica
-      const { error: updateError } = await supabase
-        .from('practices')
-        .update({ status: 'pending_payment' })
-        .eq('id', formData.practiceId)
-
-      if (updateError) {
-        throw new Error("Errore nell'aggiornamento dello stato della pratica")
-      }
+      const data = await response.json()
+      console.log('Risposta pagamento:', data)
 
       toast.success('Reindirizzamento al sistema di pagamento...')
-      // Redirect o altra logica per il pagamento
-    } catch (error: unknown) {
+      // TODO: gestire il redirect alla pagina di pagamento
+    } catch (error) {
       console.error('Errore completo:', error)
-      const errorMessage = getErrorMessage(error)
-      toast.error(errorMessage)
+      toast.error(error instanceof Error ? error.message : "Errore durante l'avvio del pagamento")
       setIsProcessing(false)
     }
   }
