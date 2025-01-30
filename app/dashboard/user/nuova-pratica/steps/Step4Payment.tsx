@@ -102,39 +102,38 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const handlePayment = async () => {
     try {
       setIsProcessing(true)
-      console.log('Invio dati pagamento:', {
+      
+      // Log dettagliato dei dati prima dell'invio
+      const paymentData = {
         totalPrice: formData.priceInfo.base_price,
         productId: formData.productId,
-        // Log altri dati
-        formData
-      })
+        employeeName: formData.employeeName,
+        fiscalCode: formData.fiscalCode,
+        email: formData.email,
+        contractType: formData.contractType,
+        contractValue: formData.contractValue,
+        quantity: formData.quantity,
+        isOdcec: formData.isOdcec,
+        isRenewal: formData.isRenewal
+      }
+      
+      console.log('Dati form completi:', formData)
+      console.log('Dati pagamento da inviare:', paymentData)
 
       const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          totalPrice: formData.priceInfo.base_price,
-          productId: formData.productId,
-          employeeName: formData.employeeName,
-          fiscalCode: formData.fiscalCode,
-          email: formData.email,
-          contractType: formData.contractType,
-          contractValue: formData.contractValue,
-          quantity: formData.quantity,
-          isOdcec: formData.isOdcec,
-          isRenewal: formData.isRenewal
-        })
+        body: JSON.stringify(paymentData)
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Errore durante l'avvio del pagamento")
-      }
-
       const data = await response.json()
-      console.log('Risposta pagamento:', data)
+      console.log('Risposta dal server:', data)
+
+      if (!response.ok) {
+        throw new Error(data.message || data.details || "Errore durante l'avvio del pagamento")
+      }
 
       toast.success('Reindirizzamento al sistema di pagamento...')
       // TODO: gestire il redirect alla pagina di pagamento

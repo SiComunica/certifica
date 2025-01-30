@@ -38,8 +38,39 @@ async function getEasyCommerceToken() {
 
 export async function POST(request: Request) {
   try {
-    console.log('Starting payment process...')
+    console.log('=== INIZIO PROCESSO PAGAMENTO ===')
+
+    // Log del body della richiesta
+    const paymentData = await request.json()
+    console.log('Dati ricevuti:', paymentData)
+
+    // Validazione più dettagliata
+    const requiredFields = ['totalPrice', 'productId']
+    const missingFields = requiredFields.filter(field => !paymentData[field])
     
+    if (missingFields.length > 0) {
+      console.log('Campi mancanti:', missingFields)
+      return NextResponse.json(
+        { 
+          message: 'Dati di pagamento non validi',
+          details: `Campi mancanti: ${missingFields.join(', ')}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // Verifica valori
+    if (typeof paymentData.totalPrice !== 'number' || paymentData.totalPrice <= 0) {
+      console.log('Prezzo non valido:', paymentData.totalPrice)
+      return NextResponse.json(
+        { 
+          message: 'Dati di pagamento non validi',
+          details: 'Il prezzo deve essere un numero maggiore di zero'
+        },
+        { status: 400 }
+      )
+    }
+
     // Ottieni il token di autenticazione
     const token = await getEasyCommerceToken()
     console.log('Token ottenuto con successo')
@@ -56,19 +87,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: 'Non autorizzato' },
         { status: 401 }
-      )
-    }
-
-    // Recupera i dati dal body
-    const paymentData = await request.json()
-    console.log('Payment Data received:', paymentData)
-
-    // Validazione dei dati
-    if (!paymentData.totalPrice || !paymentData.productId) {
-      console.log('Invalid payment data:', paymentData)
-      return NextResponse.json(
-        { message: 'Dati di pagamento non validi' },
-        { status: 400 }
       )
     }
 
@@ -107,9 +125,9 @@ export async function POST(request: Request) {
     )
 
   } catch (error) {
-    console.error('Payment error details:', error)
+    console.error('=== ERRORE PROCESSO PAGAMENTO ===', error)
     return NextResponse.json(
-      { 
+      {
         message: "Errore durante l'elaborazione del pagamento",
         details: error instanceof Error ? error.message : 'Unknown error'
       },
