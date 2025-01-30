@@ -29,6 +29,7 @@ interface Props {
   formData: FormData
   onSubmit: (data: any) => void
   onBack: () => void
+  updateFormData: (data: Partial<FormData>) => void
 }
 
 // Funzione helper per gestire gli errori
@@ -54,7 +55,7 @@ const getFileName = (fileName: unknown): string => {
   return parts[parts.length - 1] || ''
 }
 
-export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
+export default function Step4Payment({ formData, onSubmit, onBack, updateFormData }: Props) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [totalPrice, setTotalPrice] = useState<number>(0)
   const [conventionCode, setConventionCode] = useState("")
@@ -106,7 +107,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       
       // Verifica dati obbligatori
       if (!formData.email) {
-        console.log('Email mancante')
+        console.log('Email mancante nel formData:', formData)
         toast.error("L'email è obbligatoria per il pagamento")
         setIsProcessing(false)
         return
@@ -150,7 +151,6 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         throw new Error(data.message || data.details || "Errore durante l'avvio del pagamento")
       }
       
-      // Redirect alla pagina di pagamento di EasyCommerce
       if (data.redirectUrl) {
         console.log('Redirect a:', data.redirectUrl)
         window.location.href = data.redirectUrl
@@ -165,6 +165,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       setIsProcessing(false)
     }
   }
+
   const getDocumentName = (key: string): string => {
     const fileName = formData.documents[key as keyof typeof formData.documents]
     return getFileName(fileName)
@@ -248,11 +249,23 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUserData(user)
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error) throw error
+        
+        setUserData(user)
+        
+        // Aggiorna l'email nel formData se non è già impostata
+        if (user?.email && !formData.email) {
+          console.log('Impostazione email da utente:', user.email)
+          updateFormData({ email: user.email })
+        }
+      } catch (error) {
+        console.error('Errore nel recupero utente:', error)
+      }
     }
     getUser()
-  }, [supabase])
+  }, [supabase, formData.email, updateFormData])
 
   // Calcoliamo il prezzo finale includendo lo sconto convenzione
   const finalTotal = appliedConvention 
@@ -374,7 +387,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         </Button>
         <Button
           onClick={handlePayment}
-          disabled={isProcessing}
+          disabled={isProcessing || !formData.email}
           className="bg-green-600 hover:bg-green-700"
         >
           {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
