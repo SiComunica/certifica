@@ -7,37 +7,7 @@ import { toast } from "sonner"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
-
-interface BaseFormData {
-  employeeName: string
-  fiscalCode: string
-  contractType: string
-  contractTypeName: string
-  contractValue: number
-  quantity: number
-  isOdcec: boolean
-  isRenewal: boolean
-  documents: Record<string, string>
-}
-
-interface PriceInfo {
-  id: number
-  contract_type_id: number
-  base_price: number
-  is_percentage: boolean
-  percentage_value: number | null
-  threshold_value: number | null
-  min_quantity: number
-  is_odcec: boolean
-  is_renewal: boolean
-}
-
-interface FormData extends BaseFormData {
-  practiceId: string
-  priceInfo: PriceInfo
-  conventionCode?: string
-  conventionDiscount?: number
-}
+import { FormData, PriceRange, EmployeeData } from './types'
 
 interface PracticeData extends FormData {
   status: string
@@ -57,6 +27,11 @@ export default function NuovaPraticaPage() {
     isOdcec: false,
     isRenewal: false,
     practiceId: "",
+    basePrice: 0,
+    productId: "",
+    email: "",
+    conventionCode: "",
+    conventionDiscount: 0,
     priceInfo: {
       id: 0,
       contract_type_id: 0,
@@ -68,7 +43,7 @@ export default function NuovaPraticaPage() {
       is_odcec: false,
       is_renewal: false
     },
-    documents: {}
+    documents: [],
   })
 
   const router = useRouter()
@@ -128,7 +103,9 @@ export default function NuovaPraticaPage() {
         {currentStep === 1 && (
           <Step1EmployeeInfo
             formData={formData}
-            onSubmit={handleStep1Submit}
+            onSubmit={(data: EmployeeData & { contractTypeName?: string, priceInfo?: PriceRange }) => {
+              handleStep1Submit(data as Partial<FormData>)
+            }}
           />
         )}
 
