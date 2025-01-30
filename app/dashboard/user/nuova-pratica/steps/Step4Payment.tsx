@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { calculatePrice } from "@/lib/utils"
+import { PriceRange, FormData } from "../types"
 
 interface Convention {
   id: string
@@ -16,52 +18,40 @@ interface Convention {
   is_active: boolean
 }
 
-interface FormData {
-  employeeName: string
-  fiscalCode: string
-  contractType: string
-  contractValue: number
-  conventionCode?: string
-  conventionDiscount?: number
-  isRenewal: boolean
-  isOdcec: boolean
-  quantity: number
-  contractTypeName: string
-  practiceId: string
-  documents: Record<string, string>
-  finalPrice: number
-  email?: string
+interface ApiError {
+  message: string
+  code?: string | number
+  details?: Record<string, unknown>
+  [key: string]: unknown
 }
 
 interface Props {
-  formData: {
-    employeeName: string
-    fiscalCode: string
-    contractType: string
-    contractTypeName: string
-    contractValue: number
-    quantity: number
-    isOdcec: boolean
-    isRenewal: boolean
-    practiceId: string
-    priceInfo: {
-      id: number
-      contract_type_id: number
-      base_price: number
-      is_percentage: boolean
-      percentage_value: number | null
-      threshold_value: number | null
-      min_quantity: number
-      is_odcec: boolean
-      is_renewal: boolean
-    }
-    conventionCode?: string
-    conventionDiscount?: number
-    documents: Record<string, string>
-    email?: string
-  }
+  formData: FormData
   onSubmit: (data: any) => void
   onBack: () => void
+}
+
+// Funzione helper per gestire gli errori
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message
+  }
+  
+  if (typeof error === 'object' && error !== null) {
+    const apiError = error as ApiError
+    return apiError.message || "Errore sconosciuto"
+  }
+  
+  return "Errore durante l'avvio del pagamento"
+}
+
+// Funzione helper per estrarre il nome del file
+const getFileName = (fileName: unknown): string => {
+  if (typeof fileName !== 'string') {
+    return ''
+  }
+  const parts = fileName.split('/')
+  return parts[parts.length - 1] || ''
 }
 
 export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
@@ -72,6 +62,7 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
   const [appliedConvention, setAppliedConvention] = useState<Convention | null>(null)
   const supabase = createClientComponentClient()
   const router = useRouter()
+  const [userData, setUserData] = useState<any>(null)
 
   const verifyConvention = async () => {
     if (!conventionCode.trim()) {
@@ -112,70 +103,78 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     try {
       setIsProcessing(true)
 
-      console.log('Invio dati per pagamento:', {
+      if (!userData?.id) {
+        throw new Error("Utente non autenticato")
+      }
+
+      // Recuperiamo i dati di fatturazione dal profilo
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userData.id)
+        .single()
+
+      if (profileError) {
+        throw new Error("Errore nel recupero dei dati di fatturazione")
+      }
+
+      if (!profileData) {
+        throw new Error("Dati di fatturazione non trovati")
+      }
+
+      const paymentData = {
         contractType: formData.contractType,
-        totalPrice,
+        productId: formData.productId,
+        totalPrice: formData.priceInfo.base_price,
         employeeName: formData.employeeName,
         fiscalCode: formData.fiscalCode,
-        email: formData.email
-      })
+        email: formData.email,
+        // Dati fatturazione
+        companyName: profileData.company_name,
+        vatNumber: profileData.vat_number,
+        companyFiscalCode: profileData.company_fiscal_code,
+        address: profileData.address,
+        city: profileData.city,
+        postalCode: profileData.postal_code,
+        country: profileData.country
+      }
 
       const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          contractType: formData.contractType,
-          totalPrice,
-          employeeName: formData.employeeName,
-          fiscalCode: formData.fiscalCode,
-          email: formData.email
-        })
+        body: JSON.stringify(paymentData)
       })
 
       const data = await response.json()
-      console.log('Risposta ricevuta:', data)
 
-      if (data.error) {
-        console.error('Dettagli errore:', {
-          message: data.error,
-          details: data.details,
-          stack: data.stack
-        })
-        throw new Error(data.error)
+      if (!response.ok) {
+        throw new Error(data.message || "Errore durante l'avvio del pagamento")
       }
 
-      if (!data.codiceavviso) {
-        throw new Error('Codice avviso non ricevuto')
-      }
-
-      // Salviamo lo IUV nel database
-      await supabase
+      // Aggiorna lo stato della pratica
+      const { error: updateError } = await supabase
         .from('practices')
-        .update({ 
-          payment_iuv: data.iuv,
-          status: 'awaiting_receipt',
-          updated_at: new Date().toISOString()
-        })
+        .update({ status: 'pending_payment' })
         .eq('id', formData.practiceId)
 
-      // Redirect con controllo
-      const paymentUrl = `https://uniupo.temposrl.it/easycommerce/Payment/Index/${data.codiceavviso}`
-      console.log('Redirect a:', paymentUrl)
-      window.location.href = paymentUrl
+      if (updateError) {
+        throw new Error("Errore nell'aggiornamento dello stato della pratica")
+      }
 
+      toast.success('Reindirizzamento al sistema di pagamento...')
+      // Redirect o altra logica per il pagamento
     } catch (error: unknown) {
       console.error('Errore completo:', error)
-      const errorMessage = error instanceof Error ? error.message : "Errore durante l'avvio del pagamento"
+      const errorMessage = getErrorMessage(error)
       toast.error(errorMessage)
       setIsProcessing(false)
     }
   }
-
   const getDocumentName = (key: string): string => {
-    const fileName = formData.documents[key]
-    return typeof fileName === 'string' ? fileName.split('/').pop() || '' : ''
+    const fileName = formData.documents[key as keyof typeof formData.documents]
+    return getFileName(fileName)
   }
 
   useEffect(() => {
@@ -253,6 +252,14 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
 
     calculateTotal()
   }, [formData])
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserData(user)
+    }
+    getUser()
+  }, [supabase])
 
   // Calcoliamo il prezzo finale includendo lo sconto convenzione
   const finalTotal = appliedConvention 
