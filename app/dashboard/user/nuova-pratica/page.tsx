@@ -7,7 +7,39 @@ import { toast } from "sonner"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step3Documents from "./steps/Step3Documents"
 import Step4Payment from "./steps/Step4Payment"
-import { FormData, PriceRange, EmployeeData } from './types'
+import { FormData, EmployeeData, Document } from './types'
+import { calculatePrice } from "./utils"
+
+interface BaseFormData {
+  employeeName: string
+  fiscalCode: string
+  contractType: string
+  contractTypeName: string
+  contractValue: number
+  quantity: number
+  isOdcec: boolean
+  isRenewal: boolean
+  documents: Record<string, string>
+}
+
+interface PriceInfo {
+  id: number
+  contract_type_id: number
+  base_price: number
+  is_percentage: boolean
+  percentage_value: number | null
+  threshold_value: number | null
+  min_quantity: number
+  is_odcec: boolean
+  is_renewal: boolean
+}
+
+interface FormData extends BaseFormData {
+  practiceId: string
+  priceInfo: PriceInfo
+  conventionCode?: string
+  conventionDiscount?: number
+}
 
 interface PracticeData extends FormData {
   status: string
@@ -18,31 +50,18 @@ interface PracticeData extends FormData {
 export default function NuovaPraticaPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
-    employeeName: "",
-    fiscalCode: "",
-    contractType: "",
-    contractTypeName: "",
+    employeeName: '',
+    fiscalCode: '',
+    contractType: '',
+    contractTypeName: '',
     contractValue: 0,
     quantity: 1,
     isOdcec: false,
     isRenewal: false,
-    practiceId: "",
+    practiceId: '',
     basePrice: 0,
-    productId: "",
-    email: "",
-    conventionCode: "",
-    conventionDiscount: 0,
-    priceInfo: {
-      id: 0,
-      contract_type_id: 0,
-      base_price: 0,
-      is_percentage: false,
-      percentage_value: null,
-      threshold_value: null,
-      min_quantity: 1,
-      is_odcec: false,
-      is_renewal: false
-    },
+    productId: '',
+    email: '',
     documents: [],
   })
 
@@ -92,6 +111,14 @@ export default function NuovaPraticaPage() {
     }
   }
 
+  const updateFormData = (data: Partial<FormData>) => {
+    setFormData(prev => {
+      const newData = { ...prev, ...data }
+      console.log('Calcolo prezzo:', calculatePrice(newData))
+      return newData
+    })
+  }
+
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-2xl mx-auto">
@@ -120,6 +147,7 @@ export default function NuovaPraticaPage() {
         {currentStep === 4 && (
           <Step4Payment
             formData={formData}
+            updateFormData={updateFormData}
             onSubmit={handleStep4Submit}
             onBack={() => setCurrentStep(3)}
           />

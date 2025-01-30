@@ -9,7 +9,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { calculatePrice } from "@/lib/utils"
-import { PriceRange, FormData } from "../types"
+import { PraticaFormData } from "../types"
 
 interface Convention {
   id: string
@@ -25,11 +25,11 @@ interface ApiError {
   [key: string]: unknown
 }
 
-interface Props {
-  formData: FormData
-  onSubmit: (data: any) => void
+type Props = {
+  formData: PraticaFormData
+  updateFormData: (data: Partial<PraticaFormData>) => void
+  onSubmit: (stepData: Partial<PraticaFormData>) => Promise<void>
   onBack: () => void
-  updateFormData: (data: Partial<FormData>) => void
 }
 
 // Funzione helper per gestire gli errori
@@ -55,7 +55,7 @@ const getFileName = (fileName: unknown): string => {
   return parts[parts.length - 1] || ''
 }
 
-export default function Step4Payment({ formData, onSubmit, onBack, updateFormData }: Props) {
+export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Props) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [totalPrice, setTotalPrice] = useState<number>(0)
   const [conventionCode, setConventionCode] = useState("")
@@ -381,16 +381,21 @@ export default function Step4Payment({ formData, onSubmit, onBack, updateFormDat
         </CardContent>
       </Card>
 
-      <div className="flex justify-between space-x-4">
-        <Button onClick={onBack} variant="outline">
+      <div className="flex gap-4">
+        <Button 
+          onClick={onBack}
+          variant="outline"
+          className="w-full"
+        >
           Indietro
         </Button>
-        <Button
-          onClick={handlePayment}
+        
+        <Button 
+          onClick={handlePayment} 
           disabled={isProcessing || !formData.email}
-          className="bg-green-600 hover:bg-green-700"
+          className="w-full"
         >
-          {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
+          {isProcessing ? 'Elaborazione...' : 'Procedi al Pagamento'}
         </Button>
       </div>
     </div>
