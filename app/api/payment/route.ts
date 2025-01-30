@@ -38,45 +38,51 @@ async function getEasyCommerceToken() {
 
 export async function POST(request: Request) {
   try {
-    console.log('=== INIZIO PROCESSO PAGAMENTO ===')
+    console.log('=== INIZIO PROCESSO PAGAMENTO BACKEND ===')
 
-    // Validazione dati ricevuti
+    // Log dei dati ricevuti
     const paymentData = await request.json()
-    console.log('Dati ricevuti:', paymentData)
+    console.log('Dati ricevuti dal frontend:', paymentData)
 
-    if (!paymentData.email || !paymentData.fiscalCode || !paymentData.employeeName) {
+    // Validazione campi obbligatori
+    const requiredFields = ['email', 'fiscalCode', 'employeeName', 'productId', 'totalPrice']
+    const missingFields = requiredFields.filter(field => !paymentData[field])
+    
+    if (missingFields.length > 0) {
+      console.log('Campi mancanti:', missingFields)
       return NextResponse.json(
         { 
-          message: 'Dati utente mancanti',
-          details: 'Email, codice fiscale e nome sono obbligatori'
+          message: 'Dati di pagamento incompleti',
+          details: `Campi mancanti: ${missingFields.join(', ')}`
         },
         { status: 400 }
       )
     }
 
     // Ottieni token EasyCommerce
+    console.log('Richiesta token EasyCommerce...')
     const token = await getEasyCommerceToken()
-    console.log('Token ottenuto con successo')
+    console.log('Token ottenuto:', !!token)
 
     // Prepara i parametri per l'URL
-    const categoryId = '1' // Da configurare in base alla categoria corretta
-    const productId = paymentData.productId
-    const qty = paymentData.quantity.toString()
-    const price = paymentData.totalPrice.toString()
-    const note = `Ordine per ${paymentData.employeeName}`
+    const categoryId = '1' // Da configurare
+    const { productId, quantity, totalPrice, employeeName } = paymentData
+    const note = `Ordine per ${employeeName}`
 
-    // Costruisci l'URL di EasyCommerce
-    const easyCommerceUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${categoryId}/${productId}/${qty}/${price}/${encodeURIComponent(note)}`
+    // Costruisci l'URL
+    const easyCommerceUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${categoryId}/${productId}/${quantity}/${totalPrice}/${encodeURIComponent(note)}`
+    console.log('URL EasyCommerce:', easyCommerceUrl)
 
     // Prepara i dati utente
     const userData = {
       email: paymentData.email,
       fiscalCode: paymentData.fiscalCode,
-      fullName: paymentData.employeeName,
-      // altri dati utente necessari...
+      fullName: paymentData.employeeName
     }
+    console.log('Dati utente:', userData)
 
-    // Effettua la richiesta a EasyCommerce
+    // Chiamata a EasyCommerce
+    console.log('Invio richiesta a EasyCommerce...')
     const shopResponse = await fetch(easyCommerceUrl, {
       method: 'POST',
       headers: {
@@ -86,15 +92,17 @@ export async function POST(request: Request) {
       body: JSON.stringify(userData)
     })
 
+    console.log('Stato risposta EasyCommerce:', shopResponse.status)
+    const responseText = await shopResponse.text()
+    console.log('Risposta EasyCommerce:', responseText)
+
     if (!shopResponse.ok) {
-      const errorText = await shopResponse.text()
-      throw new Error(`Errore EasyCommerce: ${shopResponse.status} ${errorText}`)
+      throw new Error(`Errore EasyCommerce: ${shopResponse.status} ${responseText}`)
     }
 
-    const shopData = await shopResponse.json()
-    console.log('Risposta EasyCommerce:', shopData)
+    const shopData = JSON.parse(responseText)
+    console.log('Dati risposta parsati:', shopData)
 
-    // Restituisci l'URL per il redirect
     return NextResponse.json({
       message: 'Processo di pagamento iniziato',
       redirectUrl: shopData.redirectUrl || shopData.url,
@@ -102,7 +110,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error('=== ERRORE PROCESSO PAGAMENTO ===', error)
+    console.error('=== ERRORE PROCESSO PAGAMENTO BACKEND ===', error)
     return NextResponse.json(
       {
         message: "Errore durante l'elaborazione del pagamento",

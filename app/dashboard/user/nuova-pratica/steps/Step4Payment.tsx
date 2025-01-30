@@ -101,10 +101,20 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
 
   const handlePayment = async () => {
     try {
+      console.log('=== INIZIO PROCESSO PAGAMENTO FRONTEND ===')
       setIsProcessing(true)
       
+      // Verifica dati obbligatori
       if (!formData.email) {
+        console.log('Email mancante')
         toast.error("L'email è obbligatoria per il pagamento")
+        setIsProcessing(false)
+        return
+      }
+
+      if (!formData.productId) {
+        console.log('ProductId mancante')
+        toast.error("ID prodotto mancante")
         setIsProcessing(false)
         return
       }
@@ -121,7 +131,8 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         isRenewal: formData.isRenewal
       }
       
-      console.log('Invio richiesta pagamento:', paymentData)
+      console.log('Dati completi form:', formData)
+      console.log('Dati inviati al server:', paymentData)
 
       const response = await fetch('/api/payment', {
         method: 'POST',
@@ -131,23 +142,25 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         body: JSON.stringify(paymentData)
       })
 
+      console.log('Risposta ricevuta:', response.status)
       const data = await response.json()
+      console.log('Dati risposta:', data)
       
       if (!response.ok) {
         throw new Error(data.message || data.details || "Errore durante l'avvio del pagamento")
       }
-
-      console.log('Risposta pagamento:', data)
       
       // Redirect alla pagina di pagamento di EasyCommerce
       if (data.redirectUrl) {
+        console.log('Redirect a:', data.redirectUrl)
         window.location.href = data.redirectUrl
       } else {
+        console.log('URL redirect mancante nella risposta:', data)
         throw new Error('URL di redirect mancante nella risposta')
       }
 
     } catch (error) {
-      console.error('Errore pagamento:', error)
+      console.error('=== ERRORE PAGAMENTO FRONTEND ===', error)
       toast.error(error instanceof Error ? error.message : "Errore durante l'avvio del pagamento")
       setIsProcessing(false)
     }
