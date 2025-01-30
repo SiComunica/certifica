@@ -1,122 +1,156 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { toast } from "sonner"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { PraticaFormData, EmployeeData, PriceRange } from "./types"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step3Documents from "./steps/Step3Documents"
-import Step4Payment from "./steps/Step4Payment"
-import { FormData, EmployeeData, Document } from './types'
-import { calculatePrice } from "./utils"
+import { Step4Payment } from "./steps/Step4Payment"
 
-interface BaseFormData {
+type Step1Data = {
   employeeName: string
   fiscalCode: string
+  email: string
   contractType: string
-  contractTypeName: string
   contractValue: number
-  quantity: number
+  contractTypeName?: string
   isOdcec: boolean
   isRenewal: boolean
-  documents: Record<string, string>
+  priceInfo?: {
+    id: number
+    contract_type_id: number
+    min_quantity: number
+    max_quantity: number
+    base_price: number
+    is_percentage: boolean
+    percentage_value: number
+    threshold_value: number | null
+    is_odcec: boolean
+    is_renewal: boolean
+  }
 }
 
-interface PriceInfo {
-  id: number
-  contract_type_id: number
-  base_price: number
-  is_percentage: boolean
-  percentage_value: number | null
-  threshold_value: number | null
-  min_quantity: number
-  is_odcec: boolean
-  is_renewal: boolean
-}
-
-interface FormData extends BaseFormData {
-  practiceId: string
-  priceInfo: PriceInfo
-  conventionCode?: string
-  conventionDiscount?: number
-}
-
-interface PracticeData extends FormData {
-  status: string
-  user_id: string
-  created_at: string
-}
-
-export default function NuovaPraticaPage() {
+export default function NuovaPratica() {
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<FormData>({
-    employeeName: '',
-    fiscalCode: '',
-    contractType: '',
-    contractTypeName: '',
+  const [formData, setFormData] = useState<PraticaFormData>({
+    employeeName: "",
+    fiscalCode: "",
+    email: "",
+    contractType: "",
+    contractTypeName: "",
     contractValue: 0,
-    quantity: 1,
+    documents: [],
+    conventionCode: "",
+    conventionDiscount: 0,
     isOdcec: false,
     isRenewal: false,
-    practiceId: '',
-    basePrice: 0,
-    productId: '',
-    email: '',
-    documents: [],
+    quantity: 1,
+    productId: "",
+    practiceId: "",
+    priceInfo: {
+      id: 0,
+      contract_type_id: 0,
+      min_quantity: 1,
+      max_quantity: 1,
+      base_price: 0,
+      base: 0,
+      is_percentage: false,
+      percentage_value: 0,
+      threshold_value: null,
+      is_odcec: false,
+      is_renewal: false,
+      inputs: {
+        isPercentage: false,
+        threshold: null,
+        contractValue: 0,
+        basePrice: 0,
+        quantity: 1,
+        isOdcec: false,
+        isRenewal: false,
+        conventionDiscount: 0
+      },
+      withVAT: 0
+    }
   })
 
-  const router = useRouter()
   const supabase = createClientComponentClient()
 
-  const handleStep1Submit = (stepData: Partial<FormData>) => {
-    setFormData(prev => ({ ...prev, ...stepData }))
-    setCurrentStep(3)
-  }
-
-  const handleStep3Submit = (stepData: Partial<FormData>) => {
-    setFormData(prev => ({ ...prev, ...stepData }))
-    setCurrentStep(4)
-  }
-
-  const handleStep4Submit = async (stepData: Partial<FormData>) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        toast.error("Utente non autenticato")
-        return
-      }
-
-      const practiceData: PracticeData = {
-        ...formData,
-        ...stepData,
-        status: "pending_payment",
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      }
-
-      const { error: practiceError } = await supabase
-        .from('practices')
-        .insert([practiceData])
-
-      if (practiceError) throw practiceError
-
-      toast.success("Pratica creata con successo")
-      router.push('/dashboard/pratiche')
-    } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Si è verificato un errore. Riprova.")
-    }
-  }
-
-  const updateFormData = (data: Partial<FormData>) => {
-    setFormData(prev => {
+  const updateFormData = (data: Partial<PraticaFormData>) => {
+    setFormData((prev: PraticaFormData) => {
       const newData = { ...prev, ...data }
-      console.log('Calcolo prezzo:', calculatePrice(newData))
-      return newData
+      // Calcolo prezzo
+      const basePrice = newData.priceInfo?.base_price || 0
+      const quantity = newData.quantity || 1
+      const conventionDiscount = newData.conventionDiscount || 0
+
+      let price = basePrice * quantity
+      if (conventionDiscount > 0) {
+        price = price * (1 - conventionDiscount / 100)
+      }
+
+      return {
+        ...newData,
+        priceInfo: {
+          ...newData.priceInfo,
+          base: basePrice,
+          inputs: {
+            isPercentage: newData.priceInfo?.is_percentage || false,
+            threshold: newData.priceInfo?.threshold_value || null,
+            contractValue: newData.contractValue || 0,
+            basePrice: basePrice,
+            quantity: quantity,
+            isOdcec: newData.isOdcec || false,
+            isRenewal: newData.isRenewal || false,
+            conventionDiscount: conventionDiscount
+          },
+          withVAT: price * 1.22
+        }
+      }
     })
+  }
+
+  const handleStep1Submit = async (data: Step1Data) => {
+    updateFormData({
+      ...data,
+      priceInfo: data.priceInfo ? {
+        ...formData.priceInfo,
+        ...data.priceInfo,
+        base: data.priceInfo.base_price,
+        inputs: {
+          isPercentage: data.priceInfo.is_percentage,
+          threshold: data.priceInfo.threshold_value,
+          contractValue: data.contractValue,
+          basePrice: data.priceInfo.base_price,
+          quantity: 1,
+          isOdcec: data.isOdcec,
+          isRenewal: data.isRenewal,
+          conventionDiscount: 0
+        },
+        withVAT: data.priceInfo.base_price * 1.22
+      } : formData.priceInfo
+    })
+    handleNextStep()
+  }
+
+  const handleStep2Submit = async (stepData: Partial<PraticaFormData>) => {
+    updateFormData(stepData)
+    handleNextStep()
+  }
+
+  const handleStep3Submit = async (stepData: Partial<PraticaFormData>) => {
+    updateFormData(stepData)
+    handleNextStep()
+  }
+
+  const handleStep4Submit = async (stepData: Partial<PraticaFormData>) => {
+    updateFormData(stepData)
+    // Logica per il pagamento
+  }
+
+  const handleNextStep = () => {
+    setCurrentStep((prev: number) => prev + 1)
   }
 
   return (
@@ -130,20 +164,23 @@ export default function NuovaPraticaPage() {
         {currentStep === 1 && (
           <Step1EmployeeInfo
             formData={formData}
-            onSubmit={(data: EmployeeData & { contractTypeName?: string, priceInfo?: PriceRange }) => {
-              handleStep1Submit(data as Partial<FormData>)
-            }}
+            onSubmit={handleStep1Submit}
           />
         )}
-
+        {currentStep === 2 && (
+          <Step3Documents
+            formData={formData}
+            onSubmit={handleStep2Submit}
+            onBack={() => setCurrentStep(1)}
+          />
+        )}
         {currentStep === 3 && (
           <Step3Documents
             formData={formData}
             onSubmit={handleStep3Submit}
-            onBack={() => setCurrentStep(1)}
+            onBack={() => setCurrentStep(2)}
           />
         )}
-
         {currentStep === 4 && (
           <Step4Payment
             formData={formData}

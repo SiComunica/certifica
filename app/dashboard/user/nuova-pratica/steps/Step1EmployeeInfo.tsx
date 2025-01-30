@@ -8,18 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
-
-interface PriceRange {
-  id: number
-  contract_type_id: number
-  base_price: number
-  is_percentage: boolean
-  percentage_value: number | null
-  threshold_value: number | null
-  min_quantity: number
-  is_odcec: boolean
-  is_renewal: boolean
-}
+import { EmployeeData, PriceRange, PraticaFormData } from "../types"
 
 interface ContractType {
   id: number
@@ -28,33 +17,37 @@ interface ContractType {
   description: string
 }
 
-interface EmployeeData {
-  employeeName: string
-  fiscalCode: string
-  contractType: string
-  contractValue: number
-  isOdcec: boolean
-  isRenewal: boolean
-  quantity: number
-  odcecNumber?: string
-  odcecProvince?: string
-  odcecDocument?: File
+type Step1Data = EmployeeData & {
+  contractTypeName?: string
+  priceInfo?: {
+    id: number
+    contract_type_id: number
+    min_quantity: number
+    max_quantity: number
+    base_price: number
+    is_percentage: boolean
+    percentage_value: number
+    threshold_value: number | null
+    is_odcec: boolean
+    is_renewal: boolean
+  }
 }
 
-interface Props {
-  formData: Partial<EmployeeData>
-  onSubmit: (data: EmployeeData & { contractTypeName?: string, priceInfo?: PriceRange }) => void
+type Props = {
+  formData: PraticaFormData
+  onSubmit: (data: Step1Data) => void
 }
 
 export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
   const [employeeData, setEmployeeData] = useState<EmployeeData>({
-    employeeName: formData.employeeName || "",
-    fiscalCode: formData.fiscalCode || "",
-    contractType: formData.contractType || "",
-    contractValue: formData.contractValue || 0,
-    isOdcec: formData.isOdcec || false,
-    isRenewal: formData.isRenewal || false,
-    quantity: formData.quantity || 1
+    employeeName: formData.employeeName,
+    fiscalCode: formData.fiscalCode,
+    email: formData.email,
+    contractType: formData.contractType,
+    contractValue: formData.contractValue,
+    isOdcec: formData.isOdcec,
+    isRenewal: formData.isRenewal,
+    quantity: formData.quantity
   })
   const [contractTypes, setContractTypes] = useState<ContractType[]>([])
   const [priceInfo, setPriceInfo] = useState<PriceRange | undefined>(undefined)
@@ -108,18 +101,21 @@ export default function Step1EmployeeInfo({ formData, onSubmit }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!employeeData.employeeName || !employeeData.fiscalCode || !employeeData.contractType) {
-      toast.error("Compila tutti i campi obbligatori")
-      return
-    }
-
-    const selectedContract = contractTypes.find(ct => ct.id.toString() === employeeData.contractType)
-    
     onSubmit({
       ...employeeData,
-      contractTypeName: selectedContract?.name,
-      priceInfo
+      contractTypeName: formData.contractTypeName,
+      priceInfo: formData.priceInfo ? {
+        id: formData.priceInfo.id,
+        contract_type_id: formData.priceInfo.contract_type_id,
+        min_quantity: formData.priceInfo.min_quantity,
+        max_quantity: formData.priceInfo.max_quantity,
+        base_price: formData.priceInfo.base_price,
+        is_percentage: formData.priceInfo.is_percentage,
+        percentage_value: formData.priceInfo.percentage_value,
+        threshold_value: formData.priceInfo.threshold_value,
+        is_odcec: formData.priceInfo.is_odcec,
+        is_renewal: formData.priceInfo.is_renewal
+      } : undefined
     })
   }
 
