@@ -40,7 +40,12 @@ export function Step1Contract({ formData, updateFormData }: Props) {
         productId: selectedContract.productId,
         priceInfo: {
           ...formData.priceInfo,
-          base_price: selectedContract.basePrice
+          base_price: selectedContract.basePrice,
+          base: selectedContract.basePrice,
+          inputs: {
+            ...formData.priceInfo.inputs,
+            basePrice: selectedContract.basePrice
+          }
         }
       })
     }

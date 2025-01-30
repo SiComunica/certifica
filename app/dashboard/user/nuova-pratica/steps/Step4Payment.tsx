@@ -101,8 +101,19 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
   }
 
   const handlePayment = async () => {
+    console.log("=== INIZIO PROCESSO PAGAMENTO FRONTEND ===")
+    
+    if (!formData.productId) {
+      console.error("ProductId mancante")
+      return
+    }
+
+    if (!formData.priceInfo?.base_price) {
+      console.error("Prezzo base mancante")
+      return
+    }
+
     try {
-      console.log('=== INIZIO PROCESSO PAGAMENTO FRONTEND ===')
       setIsProcessing(true)
       
       // Verifica dati obbligatori
@@ -113,13 +124,6 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
         return
       }
 
-      if (!formData.productId) {
-        console.log('ProductId mancante')
-        toast.error("ID prodotto mancante")
-        setIsProcessing(false)
-        return
-      }
-      
       const paymentData = {
         totalPrice: formData.priceInfo.base_price,
         productId: formData.productId,
@@ -266,6 +270,10 @@ export function Step4Payment({ formData, updateFormData, onSubmit, onBack }: Pro
     }
     getUser()
   }, [supabase, formData.email, updateFormData])
+
+  useEffect(() => {
+    console.log("Calcolo prezzo:", formData.priceInfo)
+  }, [formData.priceInfo])
 
   // Calcoliamo il prezzo finale includendo lo sconto convenzione
   const finalTotal = appliedConvention 
