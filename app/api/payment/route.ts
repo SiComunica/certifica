@@ -8,7 +8,7 @@ async function getEasyCommerceToken() {
     
     const authBody = {
       Username: "UniRoma2test",
-      Password: "XXXX" // Da sostituire con la password ricevuta via email
+      Password: process.env.PAYMENT_API_KEY || '' // Usa la password dalle variabili d'ambiente
     }
     
     const authResponse = await fetch(
@@ -40,14 +40,9 @@ export async function POST(request: Request) {
   try {
     console.log('Starting payment process...')
     
-    // Verifica configurazione
-    if (!process.env.PAYMENT_API_KEY || process.env.PAYMENT_API_KEY === 'xxxx') {
-      console.log('Payment credentials not configured')
-      return NextResponse.json(
-        { message: 'Sistema di pagamento non ancora configurato. Contattare il supporto.' },
-        { status: 503 }  // Service Unavailable
-      )
-    }
+    // Ottieni il token di autenticazione
+    const token = await getEasyCommerceToken()
+    console.log('Token ottenuto con successo')
 
     const supabase = createRouteHandlerClient({ cookies })
     console.log('Supabase client created')
@@ -77,43 +72,41 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Otteniamo il token
-    const token = await getEasyCommerceToken()
+    // Effettua la richiesta di pagamento con il token ottenuto
+    const paymentResponse = await fetch(
+      'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/payment/create',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: paymentData.totalPrice,
+          productId: paymentData.productId,
+          userId: user.id,
+          // altri dati necessari...
+        })
+      }
+    )
 
-    // 2. Chiamiamo l'API5 per l'acquisto diretto
-    const shopUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${paymentData.contractType}/${paymentData.productId}/${paymentData.quantity}/${Math.round(paymentData.totalPrice * 100)}`
-    
-    const response = await fetch(shopUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        email: paymentData.email,
-        codiceFiscale: paymentData.fiscalCode,
-        nome: paymentData.employeeName.split(' ')[0],
-        cognome: paymentData.employeeName.split(' ')[1] || '',
-        // Dati fatturazione
-        ragioneSociale: paymentData.companyName,
-        partitaIva: paymentData.vatNumber,
-        codiceFiscaleAzienda: paymentData.companyFiscalCode,
-        indirizzo: paymentData.address,
-        citta: paymentData.city,
-        cap: paymentData.postalCode,
-        paese: paymentData.country
-      })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Errore nell'acquisto: ${response.status} ${errorText}`)
+    if (!paymentResponse.ok) {
+      const errorText = await paymentResponse.text()
+      throw new Error(`Errore nella risposta del server di pagamento: ${errorText}`)
     }
 
-    const data = await response.json()
-    console.log('Payment process completed successfully')
-    return NextResponse.json(data)
-  } catch (error: any) {
+    const paymentResult = await paymentResponse.json()
+    console.log('Payment process completed:', paymentResult)
+
+    return NextResponse.json(
+      { 
+        message: 'Pagamento iniziato con successo',
+        data: paymentResult
+      },
+      { status: 200 }
+    )
+
+  } catch (error) {
     console.error('Payment error details:', error)
     return NextResponse.json(
       { 
