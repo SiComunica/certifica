@@ -1,4 +1,5 @@
-import { StepProps } from "../types"
+import { useEffect, useState } from "react"
+import { StepProps, PraticaFormData } from "../types"
 
 const contractTypes = [
   { 
@@ -16,14 +17,32 @@ const contractTypes = [
   // ... altri tipi di contratto ...
 ]
 
-export function Step1Contract({ formData, updateFormData }: StepProps) {
+type ContractType = {
+  id: string
+  name: string
+  productId: string
+  basePrice: number
+}
+
+type Props = {
+  formData: PraticaFormData
+  updateFormData: (data: Partial<PraticaFormData>) => void
+}
+
+export function Step1Contract({ formData, updateFormData }: Props) {
+  const [selectedContract, setSelectedContract] = useState<ContractType | null>(null)
+
   const handleContractTypeChange = (value: string) => {
     const selectedContract = contractTypes.find(c => c.id === value)
-    updateFormData({
-      ...formData,
-      contractType: value,
-      productId: selectedContract?.productId || '',
-      basePrice: selectedContract?.basePrice || 0
-    })
+    if (selectedContract) {
+      updateFormData({
+        contractType: value,
+        productId: selectedContract.productId,
+        priceInfo: {
+          ...formData.priceInfo,
+          base_price: selectedContract.basePrice
+        }
+      })
+    }
   }
 } 
