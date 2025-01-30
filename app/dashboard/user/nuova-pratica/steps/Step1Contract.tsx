@@ -34,42 +34,72 @@ export function Step1Contract({ formData, updateFormData }: Props) {
   const [selectedContract, setSelectedContract] = useState<ContractType | null>(null)
 
   const handleContractTypeChange = async (value: string) => {
-    // Recupera il contratto da Supabase
-    const { data: contract } = await supabase
-      .from('contract_types')
-      .select('*')
-      .eq('id', value)
-      .single()
+    console.log("Selezionato contratto con ID:", value)
+    
+    try {
+      // Recupera il contratto da Supabase
+      const { data: contract, error } = await supabase
+        .from('contract_types')
+        .select('*')
+        .eq('id', value)
+        .single()
 
-    if (contract) {
-      const contractData = {
-        id: contract.id,
-        name: contract.name,
-        productId: contract.product_id,
-        basePrice: contract.base_price
+      if (error) {
+        console.error("Errore nel recupero del contratto:", error)
+        return
       }
-      
-      setSelectedContract(contractData)
-      
-      updateFormData({
-        contractType: value,
-        contractTypeName: contract.name,
-        productId: contract.product_id,
-        priceInfo: {
-          ...formData.priceInfo,
-          base_price: contract.base_price,
-          base: contract.base_price,
+
+      console.log("Dati contratto recuperati:", contract)
+
+      if (contract) {
+        const basePrice = Number(contract.base_price) || 0
+        console.log("Base price:", basePrice)
+
+        const updatedPriceInfo = {
+          id: Number(contract.id),
+          contract_type_id: Number(contract.id),
+          base_price: basePrice,
+          base: basePrice,
+          min_quantity: 1,
+          max_quantity: 1,
+          is_percentage: false,
+          percentage_value: 0,
+          threshold_value: null,
+          is_odcec: false,
+          is_renewal: false,
           inputs: {
-            ...formData.priceInfo.inputs,
-            basePrice: contract.base_price,
+            isPercentage: false,
+            threshold: null,
             contractValue: formData.contractValue || 0,
-            quantity: formData.quantity || 1
+            basePrice: basePrice,
+            quantity: formData.quantity || 1,
+            isOdcec: false,
+            isRenewal: false,
+            conventionDiscount: 0
           },
-          withVAT: contract.base_price * 1.22
+          withVAT: basePrice * 1.22
         }
-      })
+
+        console.log("Aggiornamento priceInfo:", updatedPriceInfo)
+        
+        updateFormData({
+          contractType: value,
+          contractTypeName: contract.name,
+          productId: contract.product_id,
+          priceInfo: updatedPriceInfo
+        })
+      }
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento del contratto:", error)
     }
   }
+
+  useEffect(() => {
+    // Se c'è già un contractType selezionato, recupera i dati
+    if (formData.contractType && !selectedContract) {
+      handleContractTypeChange(formData.contractType)
+    }
+  }, [formData.contractType])
 
   useEffect(() => {
     console.log("PriceInfo aggiornato:", formData.priceInfo)
