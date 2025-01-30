@@ -1,3 +1,5 @@
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 async function getEasyCommerceToken() {
@@ -36,30 +38,50 @@ async function getEasyCommerceToken() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { 
-      contractType,    // categoryId
-      productId,       // da aggiungere al form
-      quantity = 1,    // default a 1
-      totalPrice,
-      employeeName,
-      fiscalCode,
-      email,
-      // Aggiungere altri campi necessari per la fatturazione
-      companyName,
-      vatNumber,
-      companyFiscalCode,
-      address,
-      city,
-      postalCode,
-      country
-    } = body
+    console.log('Starting payment process...')
+    
+    // Verifica configurazione
+    if (!process.env.PAYMENT_API_KEY || process.env.PAYMENT_API_KEY === 'xxxx') {
+      console.log('Payment credentials not configured')
+      return NextResponse.json(
+        { message: 'Sistema di pagamento non ancora configurato. Contattare il supporto.' },
+        { status: 503 }  // Service Unavailable
+      )
+    }
+
+    const supabase = createRouteHandlerClient({ cookies })
+    console.log('Supabase client created')
+    
+    // Verifica autenticazione
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Auth check:', { user: !!user, error: authError })
+    
+    if (authError || !user) {
+      console.log('Auth failed:', authError)
+      return NextResponse.json(
+        { message: 'Non autorizzato' },
+        { status: 401 }
+      )
+    }
+
+    // Recupera i dati dal body
+    const paymentData = await request.json()
+    console.log('Payment Data received:', paymentData)
+
+    // Validazione dei dati
+    if (!paymentData.totalPrice || !paymentData.productId) {
+      console.log('Invalid payment data:', paymentData)
+      return NextResponse.json(
+        { message: 'Dati di pagamento non validi' },
+        { status: 400 }
+      )
+    }
 
     // 1. Otteniamo il token
     const token = await getEasyCommerceToken()
 
     // 2. Chiamiamo l'API5 per l'acquisto diretto
-    const shopUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${contractType}/${productId}/${quantity}/${Math.round(totalPrice * 100)}`
+    const shopUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${paymentData.contractType}/${paymentData.productId}/${paymentData.quantity}/${Math.round(paymentData.totalPrice * 100)}`
     
     const response = await fetch(shopUrl, {
       method: 'POST',
@@ -68,18 +90,18 @@ export async function POST(request: Request) {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        email,
-        codiceFiscale: fiscalCode,
-        nome: employeeName.split(' ')[0],
-        cognome: employeeName.split(' ')[1] || '',
+        email: paymentData.email,
+        codiceFiscale: paymentData.fiscalCode,
+        nome: paymentData.employeeName.split(' ')[0],
+        cognome: paymentData.employeeName.split(' ')[1] || '',
         // Dati fatturazione
-        ragioneSociale: companyName,
-        partitaIva: vatNumber,
-        codiceFiscaleAzienda: companyFiscalCode,
-        indirizzo: address,
-        citta: city,
-        cap: postalCode,
-        paese: country
+        ragioneSociale: paymentData.companyName,
+        partitaIva: paymentData.vatNumber,
+        codiceFiscaleAzienda: paymentData.companyFiscalCode,
+        indirizzo: paymentData.address,
+        citta: paymentData.city,
+        cap: paymentData.postalCode,
+        paese: paymentData.country
       })
     })
 
@@ -89,11 +111,15 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json()
+    console.log('Payment process completed successfully')
     return NextResponse.json(data)
   } catch (error: any) {
-    console.error('=== ERRORE GENERALE ===', error)
+    console.error('Payment error details:', error)
     return NextResponse.json(
-      { error: error?.message || 'Errore nel processo di acquisto' },
+      { 
+        message: "Errore durante l'elaborazione del pagamento",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
