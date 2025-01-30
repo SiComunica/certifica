@@ -103,7 +103,12 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
     try {
       setIsProcessing(true)
       
-      // Log dettagliato dei dati prima dell'invio
+      if (!formData.email) {
+        toast.error("L'email è obbligatoria per il pagamento")
+        setIsProcessing(false)
+        return
+      }
+      
       const paymentData = {
         totalPrice: formData.priceInfo.base_price,
         productId: formData.productId,
@@ -111,14 +116,12 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
         fiscalCode: formData.fiscalCode,
         email: formData.email,
         contractType: formData.contractType,
-        contractValue: formData.contractValue,
         quantity: formData.quantity,
         isOdcec: formData.isOdcec,
         isRenewal: formData.isRenewal
       }
       
-      console.log('Dati form completi:', formData)
-      console.log('Dati pagamento da inviare:', paymentData)
+      console.log('Invio richiesta pagamento:', paymentData)
 
       const response = await fetch('/api/payment', {
         method: 'POST',
@@ -129,16 +132,22 @@ export default function Step4Payment({ formData, onSubmit, onBack }: Props) {
       })
 
       const data = await response.json()
-      console.log('Risposta dal server:', data)
-
+      
       if (!response.ok) {
         throw new Error(data.message || data.details || "Errore durante l'avvio del pagamento")
       }
 
-      toast.success('Reindirizzamento al sistema di pagamento...')
-      // TODO: gestire il redirect alla pagina di pagamento
+      console.log('Risposta pagamento:', data)
+      
+      // Redirect alla pagina di pagamento di EasyCommerce
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        throw new Error('URL di redirect mancante nella risposta')
+      }
+
     } catch (error) {
-      console.error('Errore completo:', error)
+      console.error('Errore pagamento:', error)
       toast.error(error instanceof Error ? error.message : "Errore durante l'avvio del pagamento")
       setIsProcessing(false)
     }

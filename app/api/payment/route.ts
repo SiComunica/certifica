@@ -4,13 +4,13 @@ import { NextResponse } from 'next/server'
 
 async function getEasyCommerceToken() {
   try {
-    console.log('=== INIZIO AUTENTICAZIONE ===')
+    console.log('=== RICHIESTA TOKEN EASYCOMMERCE ===')
     
     const authBody = {
       Username: "UniRoma2test",
-      Password: process.env.PAYMENT_API_KEY || '' // Usa la password dalle variabili d'ambiente
+      Password: process.env.PAYMENT_API_KEY
     }
-    
+
     const authResponse = await fetch(
       'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/auth/gettoken',
       {
@@ -31,7 +31,7 @@ async function getEasyCommerceToken() {
     const authData = await authResponse.json()
     return authData.token
   } catch (error) {
-    console.error('=== ERRORE AUTENTICAZIONE ===', error)
+    console.error('=== ERRORE TOKEN EASYCOMMERCE ===', error)
     throw error
   }
 }
@@ -40,89 +40,66 @@ export async function POST(request: Request) {
   try {
     console.log('=== INIZIO PROCESSO PAGAMENTO ===')
 
-    // Log del body della richiesta
+    // Validazione dati ricevuti
     const paymentData = await request.json()
     console.log('Dati ricevuti:', paymentData)
 
-    // Validazione più dettagliata
-    const requiredFields = ['totalPrice', 'productId']
-    const missingFields = requiredFields.filter(field => !paymentData[field])
-    
-    if (missingFields.length > 0) {
-      console.log('Campi mancanti:', missingFields)
+    if (!paymentData.email || !paymentData.fiscalCode || !paymentData.employeeName) {
       return NextResponse.json(
         { 
-          message: 'Dati di pagamento non validi',
-          details: `Campi mancanti: ${missingFields.join(', ')}`
+          message: 'Dati utente mancanti',
+          details: 'Email, codice fiscale e nome sono obbligatori'
         },
         { status: 400 }
       )
     }
 
-    // Verifica valori
-    if (typeof paymentData.totalPrice !== 'number' || paymentData.totalPrice <= 0) {
-      console.log('Prezzo non valido:', paymentData.totalPrice)
-      return NextResponse.json(
-        { 
-          message: 'Dati di pagamento non validi',
-          details: 'Il prezzo deve essere un numero maggiore di zero'
-        },
-        { status: 400 }
-      )
-    }
-
-    // Ottieni il token di autenticazione
+    // Ottieni token EasyCommerce
     const token = await getEasyCommerceToken()
     console.log('Token ottenuto con successo')
 
-    const supabase = createRouteHandlerClient({ cookies })
-    console.log('Supabase client created')
-    
-    // Verifica autenticazione
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('Auth check:', { user: !!user, error: authError })
-    
-    if (authError || !user) {
-      console.log('Auth failed:', authError)
-      return NextResponse.json(
-        { message: 'Non autorizzato' },
-        { status: 401 }
-      )
+    // Prepara i parametri per l'URL
+    const categoryId = '1' // Da configurare in base alla categoria corretta
+    const productId = paymentData.productId
+    const qty = paymentData.quantity.toString()
+    const price = paymentData.totalPrice.toString()
+    const note = `Ordine per ${paymentData.employeeName}`
+
+    // Costruisci l'URL di EasyCommerce
+    const easyCommerceUrl = `https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/authshop/${categoryId}/${productId}/${qty}/${price}/${encodeURIComponent(note)}`
+
+    // Prepara i dati utente
+    const userData = {
+      email: paymentData.email,
+      fiscalCode: paymentData.fiscalCode,
+      fullName: paymentData.employeeName,
+      // altri dati utente necessari...
     }
 
-    // Effettua la richiesta di pagamento con il token ottenuto
-    const paymentResponse = await fetch(
-      'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test/api/payment/create',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          amount: paymentData.totalPrice,
-          productId: paymentData.productId,
-          userId: user.id,
-          // altri dati necessari...
-        })
-      }
-    )
-
-    if (!paymentResponse.ok) {
-      const errorText = await paymentResponse.text()
-      throw new Error(`Errore nella risposta del server di pagamento: ${errorText}`)
-    }
-
-    const paymentResult = await paymentResponse.json()
-    console.log('Payment process completed:', paymentResult)
-
-    return NextResponse.json(
-      { 
-        message: 'Pagamento iniziato con successo',
-        data: paymentResult
+    // Effettua la richiesta a EasyCommerce
+    const shopResponse = await fetch(easyCommerceUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      { status: 200 }
-    )
+      body: JSON.stringify(userData)
+    })
+
+    if (!shopResponse.ok) {
+      const errorText = await shopResponse.text()
+      throw new Error(`Errore EasyCommerce: ${shopResponse.status} ${errorText}`)
+    }
+
+    const shopData = await shopResponse.json()
+    console.log('Risposta EasyCommerce:', shopData)
+
+    // Restituisci l'URL per il redirect
+    return NextResponse.json({
+      message: 'Processo di pagamento iniziato',
+      redirectUrl: shopData.redirectUrl || shopData.url,
+      orderId: shopData.orderId
+    })
 
   } catch (error) {
     console.error('=== ERRORE PROCESSO PAGAMENTO ===', error)
