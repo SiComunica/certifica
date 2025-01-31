@@ -71,6 +71,8 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
   const [isCheckingCode, setIsCheckingCode] = useState(false)
   const [appliedConvention, setAppliedConvention] = useState<AppliedConvention | null>(null)
 
+  const PAYMENT_PORTAL_URL = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
+
   const calculateTotal = async () => {
     if (!formData.contractType) {
       console.log('Nessun tipo contratto nei formData:', formData)
@@ -287,14 +289,9 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
       console.log('Pratica salvata:', pratica)
       toast.success("Pratica creata con successo! Verrai reindirizzato al portale dei pagamenti")
-      
-      // Breve delay per mostrare il messaggio di successo
-      setTimeout(() => {
-        // Reindirizza al portale dei pagamenti in una nuova tab
-        window.open('https://easy-webreport.ccd.uniroma2.it/easyCommerce/test', '_blank')
-        // Reindirizza l'utente alla pagina delle pratiche
-        router.push('/dashboard/user/le-mie-pratiche')
-      }, 1500)
+
+      // Reindirizza direttamente al portale pagamenti
+      window.location.href = PAYMENT_PORTAL_URL
 
     } catch (error) {
       console.error('Errore completo:', error)
