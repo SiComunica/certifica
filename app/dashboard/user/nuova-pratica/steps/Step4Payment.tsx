@@ -168,7 +168,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
     setIsCheckingCode(true)
     try {
-      const code = conventionCode.toUpperCase().trim()
+      const code = conventionCode.trim().toLowerCase()
       console.log('Verifico codice convenzione:', code)
 
       // Prima verifichiamo se esistono convenzioni
@@ -178,11 +178,11 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       
       console.log('Tutte le convenzioni:', allConventions)
 
-      // Poi cerchiamo la convenzione specifica
+      // Cerchiamo la convenzione con codice case-insensitive
       const { data: convention, error } = await supabase
         .from('conventions')
         .select('*')
-        .eq('code', code)
+        .ilike('code', code)
         .eq('is_active', true)
 
       console.log('Convenzione trovata:', convention)
@@ -199,7 +199,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      const foundConvention = convention[0] // Prendiamo la prima convenzione trovata
+      const foundConvention = convention[0]
 
       // Se la convenzione è valida, applicala
       setAppliedConvention({
@@ -381,7 +381,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
               type="text"
               placeholder="Inserisci il codice"
               value={conventionCode}
-              onChange={(e) => setConventionCode(e.target.value.toUpperCase())}
+              onChange={(e) => setConventionCode(e.target.value)}
               className="flex-1 px-3 py-2 border rounded"
               disabled={!!appliedConvention}
             />
