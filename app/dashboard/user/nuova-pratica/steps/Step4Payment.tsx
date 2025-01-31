@@ -286,21 +286,19 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       }
 
       console.log('Pratica salvata:', pratica)
-      toast.success("Pratica creata con successo")
-
-      // Reindirizza al portale dei pagamenti
-      const paymentUrl = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
-      console.log('Reindirizzamento a:', paymentUrl)
+      toast.success("Pratica creata con successo! Verrai reindirizzato al portale dei pagamenti")
       
-      // Usa window.open per aprire in una nuova tab
-      window.open(paymentUrl, '_blank')
-      
-      // Reindirizza alla pagina delle pratiche
-      router.push('/dashboard/user/le-mie-pratiche')
+      // Breve delay per mostrare il messaggio di successo
+      setTimeout(() => {
+        // Reindirizza al portale dei pagamenti in una nuova tab
+        window.open('https://easy-webreport.ccd.uniroma2.it/easyCommerce/test', '_blank')
+        // Reindirizza l'utente alla pagina delle pratiche
+        router.push('/dashboard/user/le-mie-pratiche')
+      }, 1500)
 
     } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Errore nel salvataggio della pratica")
+      console.error('Errore completo:', error)
+      toast.error("Errore nel processo di pagamento")
     } finally {
       setIsProcessing(false)
     }
@@ -461,7 +459,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           <Button
             onClick={handlePayment}
             disabled={isProcessing}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
           >
             {isProcessing ? (
               <span className="flex items-center">
@@ -472,6 +470,19 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Nota informativa */}
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-600">
+          Cliccando su "Procedi al Pagamento":
+          <ul className="list-disc ml-5 mt-2">
+            <li>La pratica verrà salvata nel sistema</li>
+            <li>Verrai reindirizzato al portale EasyCommerce per il pagamento</li>
+            <li>Se non sei registrato su EasyCommerce, dovrai prima creare un account</li>
+            <li>Dopo aver effettuato il pagamento, torna nella sezione "Le Mie Pratiche" per caricare la ricevuta</li>
+          </ul>
+        </p>
       </div>
     </div>
   )
