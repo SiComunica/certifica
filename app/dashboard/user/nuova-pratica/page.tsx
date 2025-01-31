@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { PraticaFormData, EmployeeData, PriceRange } from "./types"
 import Step1EmployeeInfo from "./steps/Step1EmployeeInfo"
 import Step3Documents from "./steps/Step3Documents"
-import { Step4Payment } from "./steps/Step4Payment"
+import Step4Payment from "./steps/Step4Payment"
 
 type Step1Data = {
   employeeName: string
@@ -153,6 +153,10 @@ export default function NuovaPratica() {
     setCurrentStep((prev: number) => prev + 1)
   }
 
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1)
+  }
+
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-2xl mx-auto">
@@ -186,7 +190,7 @@ export default function NuovaPratica() {
             formData={formData}
             updateFormData={updateFormData}
             onSubmit={handleStep4Submit}
-            onBack={() => setCurrentStep(3)}
+            onBack={handleBack}
           />
         )}
       </div>
