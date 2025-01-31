@@ -251,8 +251,12 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       setIsProcessing(true)
 
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Utente non autenticato")
+      if (!user) {
+        toast.error("Utente non autenticato")
+        return
+      }
 
+      // Salva la pratica
       const { data: pratica, error: praticaError } = await supabase
         .from('pratiche')
         .insert({
@@ -275,10 +279,24 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         .select()
         .single()
 
-      if (praticaError) throw praticaError
+      if (praticaError) {
+        console.error('Errore salvataggio pratica:', praticaError)
+        toast.error("Errore nel salvataggio della pratica")
+        return
+      }
+
+      console.log('Pratica salvata:', pratica)
+      toast.success("Pratica creata con successo")
 
       // Reindirizza al portale dei pagamenti
-      window.location.href = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
+      const paymentUrl = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
+      console.log('Reindirizzamento a:', paymentUrl)
+      
+      // Usa window.open per aprire in una nuova tab
+      window.open(paymentUrl, '_blank')
+      
+      // Reindirizza alla pagina delle pratiche
+      router.push('/dashboard/user/le-mie-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
@@ -420,15 +438,16 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         </CardContent>
       </Card>
 
-      <div className="flex justify-between space-x-4 mt-6">
+      <div className="flex justify-between items-center mt-6">
         <div className="space-x-4">
           <Button
-            onClick={handleBack}
+            onClick={onBack}
             variant="outline"
             type="button"
           >
             Torna Indietro
           </Button>
+          
           <Button
             onClick={() => router.push('/dashboard/user')}
             variant="destructive"
@@ -437,14 +456,22 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
             Annulla
           </Button>
         </div>
-        
-        <Button
-          onClick={handlePayment}
-          disabled={isProcessing}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
-        </Button>
+
+        <div className="space-x-4">
+          <Button
+            onClick={handlePayment}
+            disabled={isProcessing}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {isProcessing ? (
+              <span className="flex items-center">
+                <span className="mr-2">Elaborazione...</span>
+              </span>
+            ) : (
+              "Procedi al Pagamento"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )
