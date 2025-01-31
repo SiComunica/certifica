@@ -38,9 +38,11 @@ export function Step1Contract({ formData, updateFormData }: Props) {
   const supabase = createClientComponentClient()
 
   const handleContractTypeChange = async (value: string) => {
-    console.log("Selezionato contratto con ID:", value)
-    
+    if (!value) return
+
     try {
+      console.log('Cerco prezzo per:', value)
+      
       // 1. Recupera il contratto
       const { data: contract, error: contractError } = await supabase
         .from('contract_types')
@@ -50,7 +52,7 @@ export function Step1Contract({ formData, updateFormData }: Props) {
 
       if (contractError) throw contractError
 
-      // 2. Recupera il prezzo base
+      // 2. Recupera il prezzo
       const { data: priceRange, error: priceError } = await supabase
         .from('price_ranges')
         .select('*')
@@ -61,38 +63,24 @@ export function Step1Contract({ formData, updateFormData }: Props) {
         .single()
 
       if (priceError) throw priceError
-
+      
       console.log('Prezzo trovato:', priceRange)
-
-      // 3. Aggiorna lo stato locale
       setPriceInfo(priceRange)
 
-      // 4. Aggiorna formData con tutti i dati necessari
+      // 3. Aggiorna formData
       updateFormData({
         contractType: value,
         contractTypeName: contract.name,
-        productId: contract.product_id,
-        priceInfo: {
-          ...priceRange,
-          base: priceRange.base_price,
-          base_price: priceRange.base_price,
-          inputs: {
-            isPercentage: priceRange.is_percentage,
-            threshold: priceRange.threshold_value,
-            contractValue: formData.contractValue || 0,
-            basePrice: priceRange.base_price,
-            quantity: formData.quantity || 1,
-            isOdcec: false,
-            isRenewal: false,
-            conventionDiscount: 0
-          },
-          withVAT: priceRange.base_price * 1.22
-        }
+        priceInfo: priceRange,
+        quantity: formData.quantity || 1,
+        isOdcec: formData.isOdcec || false,
+        isRenewal: formData.isRenewal || false,
+        contractValue: formData.contractValue || 0
       })
 
     } catch (error) {
-      console.error('Errore durante l\'aggiornamento del contratto:', error)
-      toast.error("Errore nel recupero dei dati del contratto")
+      console.error('Errore caricamento prezzo:', error)
+      toast.error("Errore nel recupero del prezzo")
     }
   }
 
@@ -114,15 +102,26 @@ export function Step1Contract({ formData, updateFormData }: Props) {
       {priceInfo && (
         <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <div className="text-sm text-blue-600 font-medium">
-            <div>Costo base: €{priceInfo.base_price.toFixed(2)}</div>
-            <div className="text-xs mt-1">
-              * Il prezzo finale potrebbe variare in base a:
-              <ul className="list-disc list-inside mt-1">
-                <li>Quantità di pratiche</li>
-                <li>Convenzioni applicate</li>
-                <li>Rinnovo certificazione</li>
-              </ul>
-            </div>
+            {priceInfo.is_percentage && priceInfo.threshold_value ? (
+              <>
+                <div>Costo base: €{priceInfo.base_price.toFixed(2)}</div>
+                <div className="text-xs mt-1">
+                  + {priceInfo.percentage_value}% sul valore eccedente €{priceInfo.threshold_value.toFixed(2)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div>Costo pratica: €{priceInfo.base_price.toFixed(2)}</div>
+                <div className="text-xs mt-1">
+                  * Il prezzo finale potrebbe variare in base a:
+                  <ul className="list-disc list-inside mt-1">
+                    <li>Quantità di pratiche ({formData.quantity || 1})</li>
+                    {formData.isOdcec && <li>Convenzione ODCEC (applicata)</li>}
+                    {formData.isRenewal && <li>Rinnovo certificazione (applicato)</li>}
+                  </ul>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
