@@ -15,8 +15,14 @@ import { PraticaFormData } from "../types"
 interface Convention {
   id: string
   code: string
-  discount: number
+  discount_percentage: number
   is_active: boolean
+  description: string
+}
+
+interface AppliedConvention {
+  code: string
+  discount_percentage: number
 }
 
 interface ApiError {
@@ -63,99 +69,96 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
   const router = useRouter()
   const [conventionCode, setConventionCode] = useState("")
   const [isCheckingCode, setIsCheckingCode] = useState(false)
-  const [appliedConvention, setAppliedConvention] = useState<{code: string, discount: number} | null>(null)
+  const [appliedConvention, setAppliedConvention] = useState<AppliedConvention | null>(null)
 
-  useEffect(() => {
-    const calculateTotal = async () => {
-      if (!formData.contractType) {
-        console.log('Nessun tipo contratto nei formData:', formData)
+  const calculateTotal = async () => {
+    if (!formData.contractType) {
+      console.log('Nessun tipo contratto nei formData:', formData)
+      return
+    }
+
+    try {
+      console.log('Calcolo prezzo per:', formData)
+
+      const contractTypeId = formData.contractType
+      const quantity = formData.quantity || 1
+      const isOdcec = formData.isOdcec || false
+      const isRenewal = formData.isRenewal || false
+      const contractValue = formData.contractValue || 0
+
+      // Ottieni il prezzo base
+      const { data: basePrice, error: priceError } = await supabase
+        .from('price_ranges')
+        .select('*')
+        .eq('contract_type_id', contractTypeId)
+        .eq('min_quantity', 1)
+        .single()
+
+      if (priceError) {
+        console.error('Errore prezzo base:', priceError)
         return
       }
 
-      try {
-        console.log('Calcolo prezzo per:', formData)
+      console.log('Prezzo base trovato:', basePrice)
 
-        const contractTypeId = formData.contractType
-        const quantity = formData.quantity || 1
-        const isOdcec = formData.isOdcec || false
-        const isRenewal = formData.isRenewal || false
-        const contractValue = formData.contractValue || 0
+      // Calcola il prezzo
+      let total = 0
 
-        // Ottieni il prezzo base
-        const { data: basePrice, error: priceError } = await supabase
-          .from('price_ranges')
-          .select('*')
-          .eq('contract_type_id', contractTypeId)
-          .eq('min_quantity', 1)
-          .single()
-
-        if (priceError) {
-          console.error('Errore prezzo base:', priceError)
-          return
+      if (basePrice.is_percentage && basePrice.threshold_value && contractValue > 0) {
+        // Caso Contratto Commerciale Premium
+        total = basePrice.base_price
+        if (contractValue > basePrice.threshold_value) {
+          const excess = contractValue - basePrice.threshold_value
+          const percentageAmount = (excess * (basePrice.percentage_value || 0)) / 100
+          total += percentageAmount
         }
+      } else {
+        // Caso standard
+        total = basePrice.base_price * quantity
 
-        console.log('Prezzo base trovato:', basePrice)
+        // Applica sconti quantità per ODCEC se applicabile
+        if (isOdcec) {
+          const { data: quantityDiscount } = await supabase
+            .from('price_ranges')
+            .select('*')
+            .is('contract_type_id', null)
+            .eq('is_odcec', true)
+            .lte('min_quantity', quantity)
+            .order('min_quantity', { ascending: false })
+            .limit(1)
 
-        // Calcola il prezzo
-        let total = 0
-
-        if (basePrice.is_percentage && basePrice.threshold_value && contractValue > 0) {
-          // Caso Contratto Commerciale Premium
-          total = basePrice.base_price
-          if (contractValue > basePrice.threshold_value) {
-            const excess = contractValue - basePrice.threshold_value
-            const percentageAmount = (excess * (basePrice.percentage_value || 0)) / 100
-            total += percentageAmount
-          }
-        } else {
-          // Caso standard
-          total = basePrice.base_price * quantity
-
-          // Applica sconti quantità per ODCEC se applicabile
-          if (isOdcec) {
-            const { data: quantityDiscount } = await supabase
-              .from('price_ranges')
-              .select('*')
-              .is('contract_type_id', null)
-              .eq('is_odcec', true)
-              .lte('min_quantity', quantity)
-              .order('min_quantity', { ascending: false })
-              .limit(1)
-
-            if (quantityDiscount?.[0]) {
-              console.log('Sconto quantità trovato:', quantityDiscount[0])
-              total = quantityDiscount[0].base_price * quantity
-            }
+          if (quantityDiscount?.[0]) {
+            console.log('Sconto quantità trovato:', quantityDiscount[0])
+            total = quantityDiscount[0].base_price * quantity
           }
         }
-
-        // Applica sconto rinnovo se applicabile
-        if (isRenewal) {
-          total = total * 0.5 // 50% di sconto
-        }
-
-        // Applica IVA
-        const totalWithVAT = total * 1.22 // 22% IVA
-
-        console.log('Prezzo finale calcolato:', { 
-          basePrice: total, 
-          totalWithVAT,
-          quantity,
-          isOdcec,
-          isRenewal,
-          contractValue 
-        })
-        
-        setTotalPrice(totalWithVAT)
-
-      } catch (error) {
-        console.error('Errore nel calcolo del prezzo:', error)
-        toast.error("Errore nel calcolo del prezzo")
       }
-    }
 
-    calculateTotal()
-  }, [formData])
+      // Applica sconto rinnovo se applicabile
+      if (isRenewal) {
+        total = total * 0.5 // 50% di sconto
+      }
+
+      // Applica IVA
+      const totalWithVAT = total * 1.22 // 22% IVA
+
+      console.log('Prezzo finale calcolato:', { 
+        basePrice: total, 
+        totalWithVAT,
+        quantity,
+        isOdcec,
+        isRenewal,
+        contractValue,
+        appliedConvention 
+      })
+      
+      setTotalPrice(totalWithVAT)
+
+    } catch (error) {
+      console.error('Errore nel calcolo del prezzo:', error)
+      toast.error("Errore nel calcolo del prezzo")
+    }
+  }
 
   const checkConventionCode = async () => {
     if (!conventionCode.trim()) {
@@ -167,8 +170,8 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
     try {
       const { data: convention, error } = await supabase
         .from('conventions')
-        .select('code, discount')
-        .eq('code', conventionCode)
+        .select('*')
+        .eq('code', conventionCode.toUpperCase())
         .eq('is_active', true)
         .single()
 
@@ -179,9 +182,16 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
       setAppliedConvention({
         code: convention.code,
-        discount: convention.discount
+        discount_percentage: convention.discount_percentage
       })
-      toast.success(`Sconto del ${convention.discount}% applicato!`)
+
+      // Aggiorna formData con la convenzione
+      updateFormData({
+        conventionCode: convention.code,
+        conventionDiscount: convention.discount_percentage
+      })
+
+      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
 
     } catch (error) {
       console.error('Errore:', error)
@@ -190,6 +200,22 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       setIsCheckingCode(false)
     }
   }
+
+  const removeConvention = () => {
+    setAppliedConvention(null)
+    setConventionCode("")
+    calculateTotal()
+    updateFormData({
+      conventionCode: "",
+      conventionDiscount: 0
+    })
+    toast.success("Convenzione rimossa")
+  }
+
+  // Usa calculateTotal nell'effetto
+  useEffect(() => {
+    calculateTotal()
+  }, [formData, appliedConvention])
 
   const handlePayment = async () => {
     console.log("=== INIZIO PROCESSO PAGAMENTO FRONTEND ===")
@@ -280,7 +306,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
   // Calcoliamo il prezzo finale includendo lo sconto convenzione
   const finalTotal = appliedConvention 
-    ? totalPrice - (totalPrice * appliedConvention.discount / 100)
+    ? totalPrice - (totalPrice * appliedConvention.discount_percentage / 100)
     : totalPrice
 
   return (
@@ -323,31 +349,41 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           </div>
         </div>
 
-        <div className="mt-6 border-t pt-4">
-          <h3 className="font-medium mb-4">Codice Convenzione</h3>
-          <div className="flex gap-2">
-            <Input
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-lg font-medium mb-3">Codice Convenzione</h4>
+          <div className="flex gap-3">
+            <input
               type="text"
+              placeholder="Inserisci il codice"
               value={conventionCode}
-              onChange={(e) => setConventionCode(e.target.value)}
-              placeholder="Inserisci il codice convenzione"
+              onChange={(e) => setConventionCode(e.target.value.toUpperCase())}
+              className="flex-1 px-3 py-2 border rounded"
               disabled={!!appliedConvention}
             />
-            <Button
-              onClick={checkConventionCode}
-              disabled={isCheckingCode || !!appliedConvention}
-            >
-              {isCheckingCode ? "Verifica..." : "Applica"}
-            </Button>
+            {!appliedConvention ? (
+              <Button 
+                onClick={checkConventionCode}
+                disabled={isCheckingCode}
+              >
+                {isCheckingCode ? "Verifica..." : "Applica"}
+              </Button>
+            ) : (
+              <Button 
+                onClick={removeConvention}
+                variant="destructive"
+              >
+                Rimuovi
+              </Button>
+            )}
           </div>
-          
+
           {appliedConvention && (
             <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
               <p className="text-green-700">
-                Sconto del {appliedConvention.discount}% applicato
+                Sconto del {appliedConvention.discount_percentage}% applicato
               </p>
               <p className="text-sm text-green-600">
-                Risparmio: €{(totalPrice - finalTotal).toFixed(2)}
+                Risparmio: €{((totalPrice / (1 - appliedConvention.discount_percentage/100)) - totalPrice).toFixed(2)}
               </p>
             </div>
           )}
@@ -374,7 +410,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
               {appliedConvention && (
                 <div className="flex justify-between items-center text-sm text-green-600">
-                  <span>Sconto ({appliedConvention.discount}%):</span>
+                  <span>Sconto ({appliedConvention.discount_percentage}%):</span>
                   <span>- €{(totalPrice - finalTotal).toLocaleString()}</span>
                 </div>
               )}
