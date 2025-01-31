@@ -258,9 +258,9 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva la pratica
-      const { data: pratica, error: praticaError } = await supabase
-        .from('pratiche')
+      // Salva nella tabella practices (non pratiche)
+      const { data: practice, error: practiceError } = await supabase
+        .from('practices')
         .insert({
           user_id: user.id,
           employee_name: formData.employeeName,
@@ -269,7 +269,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           status: 'pending_payment',
           total_amount: totalPrice,
           documents: formData.documents,
-          pratica_number: `P${Date.now()}`,
+          practice_number: `P${Date.now()}`,
           fiscal_code: formData.fiscalCode,
           is_odcec: formData.isOdcec,
           is_renewal: formData.isRenewal,
@@ -281,21 +281,18 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         .select()
         .single()
 
-      if (praticaError) {
-        console.error('Errore salvataggio pratica:', praticaError)
+      if (practiceError) {
+        console.error('Errore salvataggio pratica:', practiceError)
         toast.error("Errore nel salvataggio della pratica")
         return
       }
 
-      console.log('Pratica salvata:', pratica)
-      toast.success("Pratica creata con successo! Verrai reindirizzato al portale dei pagamenti")
-
-      // Reindirizza direttamente al portale pagamenti
-      window.location.replace('https://easy-webreport.ccd.uniroma2.it/easyCommerce/test')
+      // Reindirizzamento semplice a EasyCommerce
+      window.location.href = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
 
     } catch (error) {
-      console.error('Errore completo:', error)
-      toast.error("Errore nel processo di pagamento")
+      console.error('Errore:', error)
+      toast.error("Errore nel processo")
     } finally {
       setIsProcessing(false)
     }
