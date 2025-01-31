@@ -291,7 +291,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       toast.success("Pratica creata con successo! Verrai reindirizzato al portale dei pagamenti")
 
       // Reindirizza direttamente al portale pagamenti
-      window.location.href = PAYMENT_PORTAL_URL
+      window.location.replace('https://easy-webreport.ccd.uniroma2.it/easyCommerce/test')
 
     } catch (error) {
       console.error('Errore completo:', error)
@@ -391,18 +391,6 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           )}
         </div>
 
-          {/* Box informativo */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-medium text-blue-800 mb-2">Procedura di Pagamento</h4>
-            <ul className="space-y-2 text-sm text-blue-700">
-              <li>1. Cliccando su "Procedi al Pagamento" verrai reindirizzato alla piattaforma pagoPA</li>
-              <li>2. Dopo il pagamento, riceverai una email con la ricevuta telematica</li>
-              <li>3. Torna in questa piattaforma nella sezione "Le Mie Pratiche"</li>
-              <li>4. Carica la ricevuta telematica per completare la procedura</li>
-              <li>5. La pratica verrà inviata alla commissione per la valutazione</li>
-            </ul>
-          </div>
-
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
@@ -472,12 +460,10 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       {/* Nota informativa */}
       <div className="mt-4 p-4 bg-blue-50 rounded-lg">
         <p className="text-sm text-blue-600">
-          Cliccando su "Procedi al Pagamento":
           <ul className="list-disc ml-5 mt-2">
-            <li>La pratica verrà salvata nel sistema</li>
             <li>Verrai reindirizzato al portale EasyCommerce per il pagamento</li>
             <li>Se non sei registrato su EasyCommerce, dovrai prima creare un account</li>
-            <li>Dopo aver effettuato il pagamento, torna nella sezione "Le Mie Pratiche" per caricare la ricevuta</li>
+            <li>Dopo aver effettuato il pagamento, torna qui per caricare la ricevuta</li>
           </ul>
         </p>
       </div>
