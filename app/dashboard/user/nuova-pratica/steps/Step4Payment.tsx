@@ -10,7 +10,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { calculatePrice } from "@/lib/utils"
-import { PraticaFormData } from "../types"
+import { PraticaFormData } from "../../types"
 
 interface Convention {
   id: string
@@ -242,84 +242,48 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
     calculateTotal()
   }, [formData, appliedConvention])
 
+  const handleBack = () => {
+    onBack()
+  }
+
   const handlePayment = async () => {
-    console.log("=== INIZIO PROCESSO PAGAMENTO FRONTEND ===")
-    console.log("Dati completi per il pagamento:", {
-      formData,
-      totalPrice,
-      productId: formData.productId,
-      priceInfo: formData.priceInfo
-    })
-    
-    if (!formData.productId) {
-      console.error("ProductId mancante")
-      return
-    }
-
-    if (!formData.priceInfo?.base) {
-      console.error("Prezzo base mancante:", formData.priceInfo)
-      return
-    }
-
-    console.log("Procedendo al pagamento con:", {
-      productId: formData.productId,
-      price: totalPrice,
-      priceInfo: formData.priceInfo
-    })
-
     try {
       setIsProcessing(true)
-      
-      // Verifica dati obbligatori
-      if (!formData.email) {
-        console.log('Email mancante nel formData:', formData)
-        toast.error("L'email è obbligatoria per il pagamento")
-        setIsProcessing(false)
-        return
-      }
 
-      const paymentData = {
-        totalPrice: formData.priceInfo.base,
-        productId: formData.productId,
-        employeeName: formData.employeeName,
-        fiscalCode: formData.fiscalCode,
-        email: formData.email,
-        contractType: formData.contractType,
-        quantity: formData.quantity,
-        isOdcec: formData.isOdcec,
-        isRenewal: formData.isRenewal
-      }
-      
-      console.log('Dati completi form:', formData)
-      console.log('Dati inviati al server:', paymentData)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Utente non autenticato")
 
-      const response = await fetch('/api/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData)
-      })
+      const { data: pratica, error: praticaError } = await supabase
+        .from('pratiche')
+        .insert({
+          user_id: user.id,
+          employee_name: formData.employeeName,
+          contract_type: formData.contractType,
+          contract_type_name: formData.contractTypeName,
+          status: 'pending_payment',
+          total_amount: totalPrice,
+          documents: formData.documents,
+          pratica_number: `P${Date.now()}`,
+          fiscal_code: formData.fiscalCode,
+          is_odcec: formData.isOdcec,
+          is_renewal: formData.isRenewal,
+          convention_code: appliedConvention?.code || null,
+          convention_discount: appliedConvention?.discount_percentage || null,
+          quantity: formData.quantity || 1,
+          contract_value: formData.contractValue || 0
+        })
+        .select()
+        .single()
 
-      console.log('Risposta ricevuta:', response.status)
-      const data = await response.json()
-      console.log('Dati risposta:', data)
-      
-      if (!response.ok) {
-        throw new Error(data.message || data.details || "Errore durante l'avvio del pagamento")
-      }
-      
-      if (data.redirectUrl) {
-        console.log('Redirect a:', data.redirectUrl)
-        window.location.href = data.redirectUrl
-      } else {
-        console.log('URL redirect mancante nella risposta:', data)
-        throw new Error('URL di redirect mancante nella risposta')
-      }
+      if (praticaError) throw praticaError
+
+      // Reindirizza al portale dei pagamenti
+      window.location.href = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
 
     } catch (error) {
-      console.error('=== ERRORE PAGAMENTO FRONTEND ===', error)
-      toast.error(error instanceof Error ? error.message : "Errore durante l'avvio del pagamento")
+      console.error('Errore:', error)
+      toast.error("Errore nel salvataggio della pratica")
+    } finally {
       setIsProcessing(false)
     }
   }
@@ -456,13 +420,30 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         </CardContent>
       </Card>
 
-      <div className="flex gap-4">
-        <Button 
-          onClick={handlePayment} 
-          disabled={isProcessing || !formData.email}
-          className="w-full"
+      <div className="flex justify-between space-x-4 mt-6">
+        <div className="space-x-4">
+          <Button
+            onClick={handleBack}
+            variant="outline"
+            type="button"
+          >
+            Torna Indietro
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/user')}
+            variant="destructive"
+            type="button"
+          >
+            Annulla
+          </Button>
+        </div>
+        
+        <Button
+          onClick={handlePayment}
+          disabled={isProcessing}
+          className="bg-green-600 hover:bg-green-700"
         >
-          {isProcessing ? 'Elaborazione...' : 'Procedi al Pagamento'}
+          {isProcessing ? "Elaborazione..." : "Procedi al Pagamento"}
         </Button>
       </div>
     </div>
