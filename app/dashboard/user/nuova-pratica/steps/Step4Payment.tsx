@@ -168,6 +168,9 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
     setIsCheckingCode(true)
     try {
+      console.log('Verifico codice convenzione:', conventionCode.toUpperCase())
+
+      // Query alla tabella conventions
       const { data: convention, error } = await supabase
         .from('conventions')
         .select('*')
@@ -175,26 +178,39 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         .eq('is_active', true)
         .single()
 
-      if (error || !convention) {
+      console.log('Risultato query:', { convention, error })
+
+      if (error) {
+        console.error('Errore query convenzione:', error)
+        toast.error("Errore nella verifica del codice")
+        return
+      }
+
+      if (!convention) {
         toast.error("Codice convenzione non valido")
         return
       }
 
+      // Se la convenzione è valida, applicala
       setAppliedConvention({
         code: convention.code,
         discount_percentage: convention.discount_percentage
       })
 
-      // Aggiorna formData con la convenzione
+      // Aggiorna il prezzo totale con lo sconto
+      const discountedPrice = totalPrice - (totalPrice * convention.discount_percentage / 100)
+      setTotalPrice(discountedPrice)
+
+      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
+
+      // Aggiorna formData
       updateFormData({
         conventionCode: convention.code,
         conventionDiscount: convention.discount_percentage
       })
 
-      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
-
     } catch (error) {
-      console.error('Errore:', error)
+      console.error('Errore completo:', error)
       toast.error("Errore nella verifica del codice")
     } finally {
       setIsCheckingCode(false)
