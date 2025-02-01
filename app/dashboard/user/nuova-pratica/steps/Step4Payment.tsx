@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { calculatePrice } from "@/lib/utils"
 import { PraticaFormData } from "../../types"
+import { AppliedConvention } from '../types/interfaces'
 
 interface Convention {
   id: string
@@ -18,11 +19,6 @@ interface Convention {
   discount_percentage: number
   is_active: boolean
   description: string
-}
-
-interface AppliedConvention {
-  code: string
-  discount_percentage: number
 }
 
 interface ApiError {
@@ -205,6 +201,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
       // Se la convenzione è valida, applicala
       setAppliedConvention({
+        id: foundConvention.id,
         code: foundConvention.code,
         discount_percentage: foundConvention.discount_percentage
       })
@@ -258,14 +255,13 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva nella tabella practices (non pratiche)
+      // Salva nella tabella practices con solo i campi esistenti
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
           user_id: user.id,
           employee_name: formData.employeeName,
-          contract_type: formData.contractType,
-          contract_type_name: formData.contractTypeName,
+          contract_type_id: formData.contractType,
           status: 'pending_payment',
           total_amount: totalPrice,
           documents: formData.documents,
@@ -273,10 +269,11 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           fiscal_code: formData.fiscalCode,
           is_odcec: formData.isOdcec,
           is_renewal: formData.isRenewal,
-          convention_code: appliedConvention?.code || null,
-          convention_discount: appliedConvention?.discount_percentage || null,
+          convention_id: appliedConvention?.id || null,
+          discount_percentage: appliedConvention?.discount_percentage || null,
           quantity: formData.quantity || 1,
-          contract_value: formData.contractValue || 0
+          contract_value: formData.contractValue || 0,
+          created_at: new Date().toISOString()
         })
         .select()
         .single()
