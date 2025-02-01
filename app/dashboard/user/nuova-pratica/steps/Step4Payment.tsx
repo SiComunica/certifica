@@ -11,7 +11,12 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { calculatePrice } from "@/lib/utils"
 import { PraticaFormData } from "../../types"
-import { AppliedConvention } from './interfaces'
+
+// Definiamo l'interfaccia qui direttamente invece di importarla
+interface AppliedConvention {
+  code: string
+  discount_percentage: number
+}
 
 interface Convention {
   id: string
@@ -159,58 +164,30 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
   }
 
   const checkConventionCode = async () => {
-    if (!conventionCode.trim()) {
-      toast.error("Inserisci un codice convenzione")
-      return
-    }
-
-    setIsCheckingCode(true)
     try {
-      console.log('Verifico codice convenzione:', conventionCode.toUpperCase())
-
-      // Query alla tabella conventions
+      setIsCheckingCode(true)
+      
       const { data: convention, error } = await supabase
         .from('conventions')
         .select('*')
-        .eq('code', conventionCode.toUpperCase())
-        .eq('is_active', true)
+        .eq('code', conventionCode)
         .single()
 
-      console.log('Risultato query:', { convention, error })
-
-      if (error) {
-        console.error('Errore query convenzione:', error)
-        toast.error("Errore nella verifica del codice")
+      if (error || !convention) {
+        toast.error('Codice convenzione non valido')
         return
       }
 
-      if (!convention) {
-        toast.error("Codice convenzione non valido")
-        return
-      }
-
-      // Se la convenzione è valida, applicala
       setAppliedConvention({
-        id: convention.id,
         code: convention.code,
         discount_percentage: convention.discount_percentage
       })
 
-      // Aggiorna il prezzo totale con lo sconto
-      const discountedPrice = totalPrice - (totalPrice * convention.discount_percentage / 100)
-      setTotalPrice(discountedPrice)
-
-      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
-
-      // Aggiorna formData
-      updateFormData({
-        conventionCode: convention.code,
-        conventionDiscount: convention.discount_percentage
-      })
-
+      toast.success('Codice convenzione applicato')
+      
     } catch (error) {
-      console.error('Errore completo:', error)
-      toast.error("Errore nella verifica del codice")
+      console.error('Errore:', error)
+      toast.error('Errore nella verifica del codice')
     } finally {
       setIsCheckingCode(false)
     }
@@ -246,7 +223,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva nella tabella practices con solo i campi esistenti
+      // Salva nella tabella practices
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -260,7 +237,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           fiscal_code: formData.fiscalCode,
           is_odcec: formData.isOdcec,
           is_renewal: formData.isRenewal,
-          convention_id: appliedConvention?.id || null,
+          convention_code: appliedConvention?.code || null,
           discount_percentage: appliedConvention?.discount_percentage || null,
           quantity: formData.quantity || 1,
           contract_value: formData.contractValue || 0,
@@ -275,8 +252,12 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Reindirizzamento semplice a EasyCommerce
-      window.location.href = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
+      // Se la pratica è stata salvata con successo, apri EasyCommerce in una nuova tab
+      const easyCommerceUrl = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
+      window.open(easyCommerceUrl, '_blank')?.focus()
+
+      // Reindirizza alla dashboard
+      router.push('/dashboard/user/le-mie-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
