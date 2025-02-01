@@ -20,6 +20,7 @@ import { format } from "date-fns"
 import { it } from "date-fns/locale"
 import Link from "next/link"
 import { PendingPractices } from "./components/PendingPractices"
+import { CreatePracticeForm } from "@/components/forms/create-practice/multistep-form"
 
 interface Practice {
   id: string
@@ -217,6 +218,25 @@ export default function DashboardPage() {
       console.error('Errore nel caricamento pratiche:', error)
       toast.error("Errore nel caricamento delle pratiche")
     }
+  }
+
+  if (showCreateForm) {
+    return (
+      <div className="min-h-screen bg-[#f0f0f0]">
+        <Header 
+          notifications={notifications}
+          showNotifications={showNotifications}
+          setShowNotifications={setShowNotifications}
+          user={user}
+        />
+        <div className="flex">
+          <Sidebar />
+          <main className="flex-1 p-8">
+            <CreatePracticeForm onCancel={() => setShowCreateForm(false)} />
+          </main>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
