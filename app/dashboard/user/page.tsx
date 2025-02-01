@@ -294,8 +294,8 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <Button 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors" 
-                    onClick={() => setShowCreateForm(true)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    onClick={() => router.push('/dashboard/user/nuova-pratica')}
                   >
                     Avvia Pratica
                   </Button>
