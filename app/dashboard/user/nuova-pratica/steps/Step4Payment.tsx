@@ -223,12 +223,13 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva nella tabella practices con i campi corretti
+      // Salva nella tabella practices con employee_fiscal_code obbligatorio
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
           user_id: user.id,
           employee_name: formData.employeeName,
+          employee_fiscal_code: formData.fiscalCode,
           contract_type: formData.contractType,
           status: 'pending_payment',
           practice_number: `P${Date.now()}`,
