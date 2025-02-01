@@ -223,7 +223,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva nella tabella practices con employee_fiscal_code obbligatorio
+      // Salva la pratica (mantenuto invariato)
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -255,12 +255,9 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Se la pratica è stata salvata con successo, apri EasyCommerce in una nuova tab
+      // SOLO reindirizzamento a EasyCommerce
       const easyCommerceUrl = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
-      window.open(easyCommerceUrl, '_blank')?.focus()
-
-      // Reindirizza alla dashboard
-      router.push('/dashboard/user/le-mie-pratiche')
+      window.open(easyCommerceUrl, '_blank')
 
     } catch (error) {
       console.error('Errore:', error)
