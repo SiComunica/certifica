@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
-import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle, Upload } from "lucide-react"
+import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle, Upload, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [practices, setPractices] = useState<Practice[]>([])
   const [filteredPractices, setFilteredPractices] = useState<Practice[]>([])
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
   
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -257,30 +258,52 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {/* Card Nuova Pratica */}
-              <Link href="/dashboard/user/nuova-pratica">
-                <Card className="group hover:shadow-xl transition-all duration-300 border-none bg-white shadow-md">
-                  <CardHeader>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <CardTitle className="text-[#1e1e1e]">Nuova Pratica</CardTitle>
+              <Card className="group hover:shadow-xl transition-all duration-300 border-none bg-white shadow-md">
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                      <FileText className="h-5 w-5" />
                     </div>
-                    <CardDescription className="text-gray-600">
-                      Avvia una nuova richiesta di certificazione
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors" 
-                    >
-                      Avvia Pratica
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <CardTitle className="text-[#1e1e1e]">Nuova Pratica</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-600">
+                    Avvia una nuova richiesta di certificazione
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors" 
+                    onClick={() => setShowCreateForm(true)}
+                  >
+                    Avvia Pratica
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Card Le Mie Pratiche */}
+              <Card className="group hover:shadow-xl transition-all duration-300 border-none bg-white shadow-md">
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300">
+                      <FolderOpen className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-[#1e1e1e]">Le Mie Pratiche</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-600">
+                    Gestisci le tue pratiche in corso
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white transition-colors"
+                    onClick={() => router.push('/dashboard/user/le-mie-pratiche')}
+                  >
+                    Visualizza Pratiche
+                  </Button>
+                </CardContent>
+              </Card>
 
               {/* Card Storico Pratiche */}
               <Card className="group hover:shadow-xl transition-all duration-300 border-none bg-white shadow-md">
