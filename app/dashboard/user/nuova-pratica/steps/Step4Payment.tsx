@@ -223,25 +223,27 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva nella tabella practices
+      // Salva nella tabella practices con i campi corretti
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
           user_id: user.id,
           employee_name: formData.employeeName,
-          contract_type_id: formData.contractType,
+          contract_type: formData.contractType,
           status: 'pending_payment',
-          total_amount: totalPrice,
-          documents: formData.documents,
           practice_number: `P${Date.now()}`,
           fiscal_code: formData.fiscalCode,
-          is_odcec: formData.isOdcec,
-          is_renewal: formData.isRenewal,
-          convention_code: appliedConvention?.code || null,
-          discount_percentage: appliedConvention?.discount_percentage || null,
-          quantity: formData.quantity || 1,
-          contract_value: formData.contractValue || 0,
-          created_at: new Date().toISOString()
+          documents: formData.documents,
+          data: {
+            is_odcec: formData.isOdcec,
+            is_renewal: formData.isRenewal,
+            convention_code: appliedConvention?.code || null,
+            discount_percentage: appliedConvention?.discount_percentage || null,
+            quantity: formData.quantity || 1,
+            contract_value: formData.contractValue || 0,
+          },
+          created_at: new Date().toISOString(),
+          payment_status: 'pending'
         })
         .select()
         .single()
