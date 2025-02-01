@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { calculatePrice } from "@/lib/utils"
 import { PraticaFormData } from "../../types"
-import { AppliedConvention } from '../types/interfaces'
+import { AppliedConvention } from './interfaces'
 
 interface Convention {
   id: string
@@ -166,24 +166,17 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
     setIsCheckingCode(true)
     try {
-      const code = conventionCode.trim().toLowerCase()
-      console.log('Verifico codice convenzione:', code)
+      console.log('Verifico codice convenzione:', conventionCode.toUpperCase())
 
-      // Prima verifichiamo se esistono convenzioni
-      const { data: allConventions, error: listError } = await supabase
-        .from('conventions')
-        .select('*')
-      
-      console.log('Tutte le convenzioni:', allConventions)
-
-      // Cerchiamo la convenzione con codice case-insensitive
+      // Query alla tabella conventions
       const { data: convention, error } = await supabase
         .from('conventions')
         .select('*')
-        .ilike('code', code)
+        .eq('code', conventionCode.toUpperCase())
         .eq('is_active', true)
+        .single()
 
-      console.log('Convenzione trovata:', convention)
+      console.log('Risultato query:', { convention, error })
 
       if (error) {
         console.error('Errore query convenzione:', error)
@@ -191,31 +184,29 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      if (!convention || convention.length === 0) {
-        console.log('Nessuna convenzione trovata per il codice:', code)
+      if (!convention) {
         toast.error("Codice convenzione non valido")
         return
       }
 
-      const foundConvention = convention[0]
-
       // Se la convenzione è valida, applicala
       setAppliedConvention({
-        id: foundConvention.id,
-        code: foundConvention.code,
-        discount_percentage: foundConvention.discount_percentage
+        id: convention.id,
+        code: convention.code,
+        discount_percentage: convention.discount_percentage
       })
+
+      // Aggiorna il prezzo totale con lo sconto
+      const discountedPrice = totalPrice - (totalPrice * convention.discount_percentage / 100)
+      setTotalPrice(discountedPrice)
+
+      toast.success(`Sconto del ${convention.discount_percentage}% applicato!`)
 
       // Aggiorna formData
       updateFormData({
-        conventionCode: foundConvention.code,
-        conventionDiscount: foundConvention.discount_percentage
+        conventionCode: convention.code,
+        conventionDiscount: convention.discount_percentage
       })
-
-      toast.success(`Sconto del ${foundConvention.discount_percentage}% applicato!`)
-
-      // Ricalcola il totale
-      calculateTotal()
 
     } catch (error) {
       console.error('Errore completo:', error)
