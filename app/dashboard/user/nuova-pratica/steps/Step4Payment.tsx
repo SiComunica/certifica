@@ -223,7 +223,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva la pratica
+      // Salva la pratica senza total_amount
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -231,9 +231,9 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           employee_name: formData.employeeName,
           employee_fiscal_code: formData.fiscalCode,
           contract_type: formData.contractType,
-          status: 'pending_payment',  // Importante: stato iniziale
+          contract_type_name: formData.contractTypeName,
+          status: 'pending_payment',
           practice_number: `P${Date.now()}`,
-          fiscal_code: formData.fiscalCode,
           documents: formData.documents,
           data: {
             is_odcec: formData.isOdcec,
@@ -242,10 +242,10 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
             discount_percentage: appliedConvention?.discount_percentage || null,
             quantity: formData.quantity || 1,
             contract_value: formData.contractValue || 0,
+            final_price: finalTotal // Mettiamo il prezzo nei data
           },
           created_at: new Date().toISOString(),
-          payment_status: 'pending',
-          total_amount: totalPrice  // Aggiungiamo l'importo totale
+          payment_status: 'pending'
         })
         .select()
         .single()
