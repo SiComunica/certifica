@@ -223,7 +223,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva la pratica con i campi corretti
+      // 1. Salva la pratica
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -257,8 +257,14 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Reindirizza a EasyCommerce
-      window.location.href = PAYMENT_PORTAL_URL
+      // 2. Salva l'URL di ritorno in localStorage
+      localStorage.setItem('returnToMiePratiche', 'true')
+
+      // 3. Apri EasyCommerce in una nuova tab
+      window.open(PAYMENT_PORTAL_URL, '_blank')
+
+      // 4. Reindirizza alla pagina Le Mie Pratiche
+      router.push('/dashboard/user/le-mie-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
