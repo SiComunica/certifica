@@ -14,21 +14,22 @@ export default function LeMiePratiche() {
   const supabase = createClientComponentClient()
   const router = useRouter()
 
-  useEffect(() => {
-    loadPratiche()
-  }, [])
-
   const loadPratiche = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Verifica sessione
+      const { data: session } = await supabase.auth.getSession()
       
-      if (!user || !user.email) {
-        console.error('Nessun utente autenticato o email mancante')
-        toast.error("Sessione scaduta")
+      if (!session?.session?.user) {
+        console.error('Sessione non valida')
+        toast.error("Sessione scaduta, effettua di nuovo il login")
+        router.push('/login')
         return
       }
 
-      // Prima otteniamo le pratiche
+      const user = session.session.user
+      console.log('Sessione valida per:', user.email)
+
+      // Query pratiche
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
@@ -36,42 +37,40 @@ export default function LeMiePratiche() {
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Query error:', error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log('Pratiche trovate:', practices)
+      // Query contratti
+      const { data: contractTypes } = await supabase
+        .from('contract_types')
+        .select('*')
 
-      if (practices && practices.length > 0) {
-        // Otteniamo i tipi di contratto in una query separata
-        const { data: contractTypes } = await supabase
-          .from('contract_types')
-          .select('*')
+      // Mappa contratti
+      const contractMap = new Map(
+        contractTypes?.map(contract => [contract.id.toString(), contract.name]) || []
+      )
 
-        // Creiamo una mappa dei contratti
-        const contractMap = new Map(
-          contractTypes?.map(contract => [contract.id.toString(), contract.name]) || []
-        )
+      // Formatta dati
+      const formattedPratiche = practices?.map(pratica => ({
+        ...pratica,
+        contract_type_name: contractMap.get(pratica.contract_type) || pratica.contract_type,
+        user_email: user.email
+      })) || []
 
-        // Formatta i dati
-        const formattedPratiche = practices.map(pratica => ({
-          ...pratica,
-          contract_type_name: contractMap.get(pratica.contract_type) || pratica.contract_type,
-          user_email: user.email
-        }))
-
-        console.log('Pratiche formattate:', formattedPratiche)
-        setPratiche(formattedPratiche)
-      } else {
-        setPratiche([])
-      }
+      setPratiche(formattedPratiche)
 
     } catch (error) {
       console.error('Errore completo:', error)
       toast.error("Errore nel caricamento delle pratiche")
+      
+      if (error instanceof Error && error.message.includes('Invalid login credentials')) {
+        router.push('/login')
+      }
     }
   }
+
+  useEffect(() => {
+    loadPratiche()
+  }, [])
 
   const handleUploadReceipt = async (praticaId: string, file: File) => {
     try {
