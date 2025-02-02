@@ -28,12 +28,15 @@ export default function LeMiePratiche() {
         return
       }
 
-      console.log('User ID:', user.id)
-
-      // Query base per le pratiche
+      // Query semplice con join
       const { data: practices, error } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          contract_types (
+            name
+          )
+        `)
         .eq('user_id', user.id)
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
@@ -43,32 +46,16 @@ export default function LeMiePratiche() {
         throw error
       }
 
-      console.log('Pratiche trovate (raw):', practices)
+      console.log('Pratiche trovate:', practices)
 
-      if (practices && practices.length > 0) {
-        // Ottieni i dati dei contratti
-        const contractPromises = practices.map(pratica => 
-          supabase
-            .from('contract_types')
-            .select('name')
-            .eq('id', pratica.contract_type)
-            .single()
-        )
+      // Formatta i dati
+      const formattedPratiche = practices?.map(pratica => ({
+        ...pratica,
+        contract_type_name: pratica.contract_types?.name || 'Tipo contratto non specificato',
+        user_email: user.email
+      })) || []
 
-        const contractResults = await Promise.all(contractPromises)
-        
-        // Formatta i dati con type assertion
-        const formattedPratiche = practices.map((pratica, index) => ({
-          ...pratica,
-          contract_type_name: contractResults[index]?.data?.name || pratica.contract_type,
-          user_email: user.email // Ora siamo sicuri che user.email esiste
-        }))
-
-        console.log('Pratiche formattate:', formattedPratiche)
-        setPratiche(formattedPratiche)
-      } else {
-        setPratiche([])
-      }
+      setPratiche(formattedPratiche)
 
     } catch (error) {
       console.error('Errore:', error)
