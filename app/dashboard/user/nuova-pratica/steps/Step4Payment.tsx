@@ -224,15 +224,15 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       }
 
       // Genera un numero pratica univoco
-      const praticaNumber = `P${Date.now()}`
-      console.log('Creando pratica:', praticaNumber) // Debug
+      const practiceNumber = `P${Date.now()}`
+      console.log('Creando pratica:', practiceNumber) // Debug
 
       // Salva la pratica
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
           user_id: user.id,
-          pratica_number: praticaNumber,
+          practice_number: practiceNumber,
           employee_name: formData.employeeName,
           employee_fiscal_code: formData.fiscalCode,
           contract_type: formData.contractType,
@@ -251,8 +251,11 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
 
       console.log('Pratica salvata:', practice) // Debug
 
-      // Reindirizza a EasyCommerce
-      window.location.href = PAYMENT_PORTAL_URL
+      // Reindirizza a EasyCommerce in una nuova tab
+      window.open(PAYMENT_PORTAL_URL, '_blank')
+      
+      // Reindirizza alla pagina Le Mie Pratiche
+      router.push('/dashboard/user/le-mie-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
