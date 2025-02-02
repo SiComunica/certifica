@@ -30,7 +30,7 @@ export default function LeMiePratiche() {
       console.log('Sessione valida per:', user.email)
       console.log('User ID:', user.id)
 
-      // Query pratiche con più dettagli
+      // Query pratiche con filtro status corretto
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
@@ -38,11 +38,13 @@ export default function LeMiePratiche() {
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
-      console.log('Query pratiche:', {
+      console.log('Query pratiche completa:', {
         userId: user.id,
         stati: ['pending_payment', 'pending_review', 'submitted_to_commission'],
-        risultati: practices,
-        errore: error
+        query: 'SELECT * FROM practices WHERE user_id = ? AND status IN (?) ORDER BY created_at DESC',
+        risultati: practices?.length || 0,
+        primoStato: practices?.[0]?.status,
+        ultimoStato: practices?.[practices.length - 1]?.status
       })
 
       if (error) throw error
