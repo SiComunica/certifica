@@ -28,15 +28,10 @@ export default function LeMiePratiche() {
         return
       }
 
-      // Query semplice con join
+      // Prima otteniamo le pratiche
       const { data: practices, error } = await supabase
         .from('practices')
-        .select(`
-          *,
-          contract_types (
-            name
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
@@ -48,17 +43,32 @@ export default function LeMiePratiche() {
 
       console.log('Pratiche trovate:', practices)
 
-      // Formatta i dati
-      const formattedPratiche = practices?.map(pratica => ({
-        ...pratica,
-        contract_type_name: pratica.contract_types?.name || 'Tipo contratto non specificato',
-        user_email: user.email
-      })) || []
+      if (practices && practices.length > 0) {
+        // Otteniamo i tipi di contratto in una query separata
+        const { data: contractTypes } = await supabase
+          .from('contract_types')
+          .select('*')
 
-      setPratiche(formattedPratiche)
+        // Creiamo una mappa dei contratti
+        const contractMap = new Map(
+          contractTypes?.map(contract => [contract.id.toString(), contract.name]) || []
+        )
+
+        // Formatta i dati
+        const formattedPratiche = practices.map(pratica => ({
+          ...pratica,
+          contract_type_name: contractMap.get(pratica.contract_type) || pratica.contract_type,
+          user_email: user.email
+        }))
+
+        console.log('Pratiche formattate:', formattedPratiche)
+        setPratiche(formattedPratiche)
+      } else {
+        setPratiche([])
+      }
 
     } catch (error) {
-      console.error('Errore:', error)
+      console.error('Errore completo:', error)
       toast.error("Errore nel caricamento delle pratiche")
     }
   }
