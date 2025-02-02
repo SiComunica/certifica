@@ -22,44 +22,58 @@ export default function LeMiePratiche() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      console.log('User ID:', user?.id) // Debug
+      console.log('User ID:', user?.id)
 
+      // Prima facciamo una query semplice per vedere se recupera le pratiche
       const { data, error } = await supabase
         .from('practices')
-        .select(`
-          *,
-          contract_types (
-            name,
-            id
-          ),
-          profiles:user_id (
-            email
-          )
-        `)
+        .select('*')
         .eq('user_id', user?.id)
-        .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission']) // Aggiunti tutti gli stati
+        .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Query error:', error) // Debug
+        console.error('Query error:', error)
         throw error
       }
 
-      console.log('Pratiche trovate:', data) // Debug
+      console.log('Pratiche trovate (raw):', data)
 
-      // Formatta i dati includendo l'email dell'utente
-      const formattedPratiche = data?.map(pratica => ({
-        ...pratica,
-        user_email: pratica.profiles?.email,
-        contract_type_name: pratica.contract_types?.name
-      }))
+      // Se funziona, facciamo una seconda query per i dettagli del contratto
+      if (data && data.length > 0) {
+        const practicesWithDetails = await Promise.all(
+          data.map(async (pratica) => {
+            // Query per il tipo di contratto
+            const { data: contractData } = await supabase
+              .from('contract_types')
+              .select('name')
+              .eq('id', pratica.contract_type)
+              .single()
 
-      setPratiche(formattedPratiche || [])
+            // Query per l'utente
+            const { data: userData } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('id', pratica.user_id)
+              .single()
+
+            return {
+              ...pratica,
+              contract_type_name: contractData?.name,
+              user_email: userData?.email
+            }
+          })
+        )
+
+        console.log('Pratiche con dettagli:', practicesWithDetails)
+        setPratiche(practicesWithDetails)
+      } else {
+        setPratiche([])
+      }
+
     } catch (error) {
       console.error('Errore:', error)
       toast.error("Errore nel caricamento delle pratiche")
-    } finally {
-      setIsLoading(false)
     }
   }
 
