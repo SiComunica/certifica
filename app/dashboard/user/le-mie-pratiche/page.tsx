@@ -83,7 +83,6 @@ export default function LeMiePratiche() {
         .eq('id', praticaId)
 
       if (error) throw error
-
       toast.success("Pratica inviata alla commissione")
       loadPratiche()
     } catch (error) {
@@ -166,26 +165,16 @@ export default function LeMiePratiche() {
                   </div>
 
                   {/* Documenti Allegati */}
-                  <div className="mt-4 border-t pt-4">
+                  <div className="mt-4">
                     <h3 className="font-medium mb-2">Documenti Allegati:</h3>
                     <div className="space-y-2">
-                      {pratica.documents && pratica.documents.length > 0 ? (
+                      {pratica.documents && Array.isArray(pratica.documents) && pratica.documents.length > 0 ? (
                         pratica.documents.map((doc, index) => (
                           <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                             <div className="flex items-center">
                               <FileText className="h-4 w-4 mr-2 text-blue-600" />
                               <span className="text-sm">{doc.name}</span>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(
-                                `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.path}`,
-                                '_blank'
-                              )}
-                            >
-                              Visualizza
-                            </Button>
                           </div>
                         ))
                       ) : (
@@ -271,10 +260,10 @@ export default function LeMiePratiche() {
                   )}
 
                   {/* Bottone Invia alla Commissione */}
-                  {pratica.status === 'pending_review' && pratica.payment_receipt && (
+                  {pratica.status === 'pending_review' && (
                     <Button
                       onClick={() => handleSubmitToCommission(pratica.id)}
-                      className="w-full bg-green-600 hover:bg-green-700"
+                      className="w-full mt-4 bg-green-600 hover:bg-green-700"
                     >
                       <Send className="h-4 w-4 mr-2" />
                       Invia alla Commissione
