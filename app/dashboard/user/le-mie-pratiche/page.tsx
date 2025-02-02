@@ -22,8 +22,8 @@ export default function LeMiePratiche() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      console.log('Caricamento pratiche per user:', user?.id) // Debug
-      
+      console.log('User ID:', user?.id) // Debug
+
       const { data, error } = await supabase
         .from('practices')
         .select(`
@@ -37,10 +37,13 @@ export default function LeMiePratiche() {
           )
         `)
         .eq('user_id', user?.id)
-        .in('status', ['pending_payment', 'pending_review'])
+        .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission']) // Aggiunti tutti gli stati
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Query error:', error) // Debug
+        throw error
+      }
 
       console.log('Pratiche trovate:', data) // Debug
 
