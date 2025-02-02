@@ -28,8 +28,9 @@ export default function LeMiePratiche() {
 
       const user = session.session.user
       console.log('Sessione valida per:', user.email)
+      console.log('User ID:', user.id)
 
-      // Query pratiche
+      // Query pratiche con più dettagli
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
@@ -37,25 +38,56 @@ export default function LeMiePratiche() {
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
+      console.log('Query pratiche:', {
+        userId: user.id,
+        stati: ['pending_payment', 'pending_review', 'submitted_to_commission'],
+        risultati: practices,
+        errore: error
+      })
+
       if (error) throw error
 
-      // Query contratti
-      const { data: contractTypes } = await supabase
+      if (!practices || practices.length === 0) {
+        console.log('Nessuna pratica trovata')
+        setPratiche([])
+        return
+      }
+
+      // Query contratti con debug
+      const { data: contractTypes, error: contractError } = await supabase
         .from('contract_types')
         .select('*')
 
-      // Mappa contratti
+      console.log('Tipi di contratto trovati:', contractTypes)
+
+      if (contractError) {
+        console.error('Errore query contratti:', contractError)
+      }
+
+      // Mappa contratti con debug
       const contractMap = new Map(
-        contractTypes?.map(contract => [contract.id.toString(), contract.name]) || []
+        contractTypes?.map(contract => {
+          console.log('Mapping contratto:', contract)
+          return [contract.id.toString(), contract.name]
+        }) || []
       )
 
-      // Formatta dati
-      const formattedPratiche = practices?.map(pratica => ({
-        ...pratica,
-        contract_type_name: contractMap.get(pratica.contract_type) || pratica.contract_type,
-        user_email: user.email
-      })) || []
+      // Formatta dati con debug
+      const formattedPratiche = practices.map(pratica => {
+        const contractName = contractMap.get(pratica.contract_type)
+        console.log('Formattazione pratica:', {
+          praticaId: pratica.id,
+          contractType: pratica.contract_type,
+          mappedName: contractName
+        })
+        return {
+          ...pratica,
+          contract_type_name: contractName || pratica.contract_type,
+          user_email: user.email
+        }
+      })
 
+      console.log('Pratiche formattate finale:', formattedPratiche)
       setPratiche(formattedPratiche)
 
     } catch (error) {
