@@ -22,13 +22,19 @@ export default function LeMiePratiche() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      console.log('User ID:', user?.id)
+      if (!user || !user.email) {
+        console.error('Nessun utente autenticato o email mancante')
+        toast.error("Sessione scaduta")
+        return
+      }
+
+      console.log('User ID:', user.id)
 
       // Query base per le pratiche
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
@@ -51,11 +57,11 @@ export default function LeMiePratiche() {
 
         const contractResults = await Promise.all(contractPromises)
         
-        // Formatta i dati
+        // Formatta i dati con type assertion
         const formattedPratiche = practices.map((pratica, index) => ({
           ...pratica,
-          contract_type_name: contractResults[index]?.data?.name,
-          user_email: user.email // Usiamo l'email dalla sessione
+          contract_type_name: contractResults[index]?.data?.name || pratica.contract_type,
+          user_email: user.email // Ora siamo sicuri che user.email esiste
         }))
 
         console.log('Pratiche formattate:', formattedPratiche)
