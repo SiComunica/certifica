@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, CreditCard } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 const loginSchema = z.object({
   email: z.string().email("Email non valida"),
@@ -35,6 +36,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -75,6 +77,20 @@ export default function LoginPage() {
       toast("Errore durante il login. Riprova.")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleCIELogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        scopes: 'email',
+        redirectTo: `${location.origin}/auth/callback`
+      }
+    })
+    
+    if (error) {
+      console.error('Errore login:', error)
     }
   }
 
@@ -192,7 +208,17 @@ export default function LoginPage() {
                 <p className="text-gray-600">
                   Accedi in modo sicuro utilizzando la tua Carta d'Identità Elettronica
                 </p>
-                <Button className="w-full bg-[#007bff] hover:bg-blue-600 transition-colors">
+                <Button
+                  onClick={handleCIELogin}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  <Image
+                    src="/cie-logo.png"
+                    alt="CIE"
+                    width={24}
+                    height={24}
+                    className="mr-2"
+                  />
                   Accedi con CIE
                 </Button>
               </div>
