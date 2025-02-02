@@ -37,7 +37,11 @@ export interface Pratica {
   employee_name: string
   employee_fiscal_code: string
   contract_type: string
-  contract_types?: ContractType
+  contract_type_name?: string
+  contract_types?: {
+    name: string
+    id: string
+  }
   payment_receipt: string | null
   documents?: Document[]
   hearing_date?: string
