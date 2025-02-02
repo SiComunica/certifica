@@ -31,6 +31,7 @@ export interface Pratica {
   id: string
   pratica_number: string
   user_id: string
+  user_email?: string
   created_at: string
   status: string
   employee_name: string
