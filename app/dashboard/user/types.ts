@@ -14,24 +14,24 @@ export interface PraticaFormData {
   priceInfo?: any
 }
 
+export interface Document {
+  name: string
+  path: string
+}
+
 export interface Pratica {
   id: string
   pratica_number: string
   user_id: string
-  employee_name: string
-  contract_type: string
-  contract_type_name: string
-  status: string
-  total_amount: number
-  documents: any[]
-  receipt_path?: string
-  fiscal_code: string
-  is_odcec: boolean
-  is_renewal: boolean
-  convention_code?: string
-  convention_discount?: number
   created_at: string
+  status: string
+  employee_name: string
+  employee_fiscal_code: string
+  contract_type_name: string
+  total_amount: number
+  receipt_path?: string
   submitted_at?: string
-  quantity: number
-  contract_value?: number
+  hearing_date?: string
+  hearing_link?: string
+  documents?: Document[]
 } 
