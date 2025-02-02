@@ -26,15 +26,31 @@ export default function LeMiePratiche() {
       
       const { data, error } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          contract_types:contract_type (
+            name,
+            id
+          ),
+          users:user_id (
+            email
+          )
+        `)
         .eq('user_id', user?.id)
-        .eq('status', 'pending_payment')
+        .in('status', ['pending_payment', 'pending_review'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
       console.log('Pratiche trovate:', data) // Debug
-      setPratiche(data || [])
+
+      // Formatta i dati includendo l'email dell'utente
+      const formattedPratiche = data?.map(pratica => ({
+        ...pratica,
+        user_email: pratica.users?.email
+      }))
+
+      setPratiche(formattedPratiche || [])
     } catch (error) {
       console.error('Errore:', error)
       toast.error("Errore nel caricamento delle pratiche")
@@ -93,29 +109,36 @@ export default function LeMiePratiche() {
 
   const handleConfirmHearing = async (praticaId: string) => {
     try {
-      // Prima otteniamo i dati esistenti della pratica
+      // Prima otteniamo i dati della pratica
       const { data: pratica, error: fetchError } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          users:user_id (
+            email,
+            full_name
+          )
+        `)
         .eq('id', praticaId)
         .single()
 
       if (fetchError) throw fetchError
 
-      // Poi aggiorniamo solo i campi relativi alla conferma
+      // Log per l'amministratore
+      console.log(`Pratica #${pratica.pratica_number} - Utente: ${pratica.users.full_name} (${pratica.users.email})`)
+
       const { error } = await supabase
         .from('practices')
         .update({ 
           hearing_confirmed: true,
           hearing_confirmation_date: new Date().toISOString(),
-          // Manteniamo gli altri dati dell'audizione
-          hearing_date: pratica.hearing_date,
-          hearing_link: pratica.hearing_link
+          hearing_confirmation_user: pratica.users.full_name,
+          hearing_confirmation_number: pratica.pratica_number
         })
         .eq('id', praticaId)
 
       if (error) throw error
-      toast.success("Partecipazione confermata")
+      toast.success(`Partecipazione confermata per pratica #${pratica.pratica_number}`)
       loadPratiche()
     } catch (error) {
       console.error('Errore:', error)
@@ -125,29 +148,36 @@ export default function LeMiePratiche() {
 
   const handleRequestNewDate = async (praticaId: string) => {
     try {
-      // Prima otteniamo i dati esistenti della pratica
+      // Prima otteniamo i dati della pratica
       const { data: pratica, error: fetchError } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          users:user_id (
+            email,
+            full_name
+          )
+        `)
         .eq('id', praticaId)
         .single()
 
       if (fetchError) throw fetchError
 
-      // Poi aggiorniamo solo i campi relativi alla richiesta
+      // Log per l'amministratore
+      console.log(`Pratica #${pratica.pratica_number} - Utente: ${pratica.users.full_name} (${pratica.users.email})`)
+
       const { error } = await supabase
         .from('practices')
         .update({ 
           hearing_confirmed: false,
           hearing_needs_reschedule: true,
-          // Manteniamo gli altri dati dell'audizione
-          hearing_date: pratica.hearing_date,
-          hearing_link: pratica.hearing_link
+          hearing_reschedule_user: pratica.users.full_name,
+          hearing_reschedule_number: pratica.pratica_number
         })
         .eq('id', praticaId)
 
       if (error) throw error
-      toast.success("Richiesta nuova data inviata")
+      toast.success(`Richiesta nuova data inviata per pratica #${pratica.pratica_number}`)
       loadPratiche()
     } catch (error) {
       console.error('Errore:', error)
@@ -186,9 +216,13 @@ export default function LeMiePratiche() {
                   {/* Info Pratica */}
                   <div>
                     <h2 className="text-xl font-semibold">Pratica #{pratica.pratica_number}</h2>
-                    <p className="text-gray-600">Dipendente: {pratica.employee_name}</p>
-                    <p className="text-gray-600">Contratto: {pratica.contract_type}</p>
-                    <p className="text-gray-600">Stato: {pratica.status}</p>
+                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                      <p>Dipendente: {pratica.employee_name}</p>
+                      <p>Contratto: {pratica.contract_types?.name || pratica.contract_type}</p>
+                      <p>Stato: {pratica.status}</p>
+                      <p>Creata da: {pratica.user_email}</p>
+                      <p>Data creazione: {new Date(pratica.created_at).toLocaleString('it-IT')}</p>
+                    </div>
                   </div>
 
                   {/* Documenti Allegati */}
