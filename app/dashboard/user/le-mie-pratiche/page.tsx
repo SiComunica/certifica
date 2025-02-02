@@ -24,10 +24,18 @@ export default function LeMiePratiche() {
       
       console.log('User ID:', user?.id)
 
-      // Prima facciamo una query semplice per vedere se recupera le pratiche
+      // Query principale per le pratiche
       const { data, error } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          contract_types (
+            name
+          ),
+          profiles!practices_user_id_fkey (
+            email
+          )
+        `)
         .eq('user_id', user?.id)
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
@@ -37,39 +45,16 @@ export default function LeMiePratiche() {
         throw error
       }
 
-      console.log('Pratiche trovate (raw):', data)
+      console.log('Pratiche trovate:', data)
 
-      // Se funziona, facciamo una seconda query per i dettagli del contratto
-      if (data && data.length > 0) {
-        const practicesWithDetails = await Promise.all(
-          data.map(async (pratica) => {
-            // Query per il tipo di contratto
-            const { data: contractData } = await supabase
-              .from('contract_types')
-              .select('name')
-              .eq('id', pratica.contract_type)
-              .single()
+      // Formatta i dati
+      const formattedPratiche = data?.map(pratica => ({
+        ...pratica,
+        contract_type_name: pratica.contract_types?.name,
+        user_email: pratica.profiles?.email
+      })) || []
 
-            // Query per l'utente
-            const { data: userData } = await supabase
-              .from('profiles')
-              .select('email')
-              .eq('id', pratica.user_id)
-              .single()
-
-            return {
-              ...pratica,
-              contract_type_name: contractData?.name,
-              user_email: userData?.email
-            }
-          })
-        )
-
-        console.log('Pratiche con dettagli:', practicesWithDetails)
-        setPratiche(practicesWithDetails)
-      } else {
-        setPratiche([])
-      }
+      setPratiche(formattedPratiche)
 
     } catch (error) {
       console.error('Errore:', error)
