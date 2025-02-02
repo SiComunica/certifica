@@ -28,6 +28,12 @@ export interface Pratica {
   employee_name: string
   employee_fiscal_code: string
   contract_type: string
+  contract_type_name: string
   payment_receipt: string | null
   documents?: Document[]
+  hearing_date?: string
+  hearing_link?: string
+  hearing_confirmed?: boolean
+  hearing_needs_reschedule?: boolean
+  hearing_confirmation_date?: string
 } 
