@@ -223,29 +223,30 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva la pratica senza total_amount
+      // Salva la pratica con i campi corretti
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
           user_id: user.id,
+          practice_number: `P${Date.now()}`,
           employee_name: formData.employeeName,
           employee_fiscal_code: formData.fiscalCode,
+          fiscal_code: formData.fiscalCode,
           contract_type: formData.contractType,
-          contract_type_name: formData.contractTypeName,
           status: 'pending_payment',
-          practice_number: `P${Date.now()}`,
+          payment_status: 'pending',
           documents: formData.documents,
           data: {
             is_odcec: formData.isOdcec,
             is_renewal: formData.isRenewal,
-            convention_code: appliedConvention?.code || null,
-            discount_percentage: appliedConvention?.discount_percentage || null,
             quantity: formData.quantity || 1,
             contract_value: formData.contractValue || 0,
-            final_price: finalTotal // Mettiamo il prezzo nei data
+            final_price: finalTotal,
+            convention_code: appliedConvention?.code || null,
+            discount_percentage: appliedConvention?.discount_percentage || null
           },
           created_at: new Date().toISOString(),
-          payment_status: 'pending'
+          payment_started_at: new Date().toISOString()
         })
         .select()
         .single()
@@ -256,11 +257,8 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Apri EasyCommerce in una nuova tab
-      window.open(PAYMENT_PORTAL_URL, '_blank')
-      
-      // Reindirizza l'utente a Le Mie Pratiche
-      router.push('/dashboard/user/le-mie-pratiche')
+      // Reindirizza a EasyCommerce
+      window.location.href = PAYMENT_PORTAL_URL
 
     } catch (error) {
       console.error('Errore:', error)
