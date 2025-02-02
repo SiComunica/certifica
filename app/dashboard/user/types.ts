@@ -16,7 +16,15 @@ export interface PraticaFormData {
 
 export interface Document {
   name: string
-  path: string
+  url: string
+  type: string
+  size?: number
+  path?: string
+}
+
+interface ContractType {
+  name: string
+  id: string
 }
 
 export interface Pratica {
@@ -28,7 +36,7 @@ export interface Pratica {
   employee_name: string
   employee_fiscal_code: string
   contract_type: string
-  contract_type_name: string
+  contract_types?: ContractType
   payment_receipt: string | null
   documents?: Document[]
   hearing_date?: string
