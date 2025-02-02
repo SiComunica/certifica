@@ -24,18 +24,10 @@ export default function LeMiePratiche() {
       
       console.log('User ID:', user?.id)
 
-      // Query principale per le pratiche
-      const { data, error } = await supabase
+      // Query base per le pratiche
+      const { data: practices, error } = await supabase
         .from('practices')
-        .select(`
-          *,
-          contract_types (
-            name
-          ),
-          profiles!practices_user_id_fkey (
-            email
-          )
-        `)
+        .select('*')
         .eq('user_id', user?.id)
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
@@ -45,16 +37,32 @@ export default function LeMiePratiche() {
         throw error
       }
 
-      console.log('Pratiche trovate:', data)
+      console.log('Pratiche trovate (raw):', practices)
 
-      // Formatta i dati
-      const formattedPratiche = data?.map(pratica => ({
-        ...pratica,
-        contract_type_name: pratica.contract_types?.name,
-        user_email: pratica.profiles?.email
-      })) || []
+      if (practices && practices.length > 0) {
+        // Ottieni i dati dei contratti
+        const contractPromises = practices.map(pratica => 
+          supabase
+            .from('contract_types')
+            .select('name')
+            .eq('id', pratica.contract_type)
+            .single()
+        )
 
-      setPratiche(formattedPratiche)
+        const contractResults = await Promise.all(contractPromises)
+        
+        // Formatta i dati
+        const formattedPratiche = practices.map((pratica, index) => ({
+          ...pratica,
+          contract_type_name: contractResults[index]?.data?.name,
+          user_email: user.email // Usiamo l'email dalla sessione
+        }))
+
+        console.log('Pratiche formattate:', formattedPratiche)
+        setPratiche(formattedPratiche)
+      } else {
+        setPratiche([])
+      }
 
     } catch (error) {
       console.error('Errore:', error)
