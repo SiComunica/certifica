@@ -93,11 +93,24 @@ export default function LeMiePratiche() {
 
   const handleConfirmHearing = async (praticaId: string) => {
     try {
+      // Prima otteniamo i dati esistenti della pratica
+      const { data: pratica, error: fetchError } = await supabase
+        .from('practices')
+        .select('*')
+        .eq('id', praticaId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Poi aggiorniamo solo i campi relativi alla conferma
       const { error } = await supabase
         .from('practices')
         .update({ 
           hearing_confirmed: true,
-          hearing_confirmation_date: new Date().toISOString()
+          hearing_confirmation_date: new Date().toISOString(),
+          // Manteniamo gli altri dati dell'audizione
+          hearing_date: pratica.hearing_date,
+          hearing_link: pratica.hearing_link
         })
         .eq('id', praticaId)
 
@@ -112,11 +125,24 @@ export default function LeMiePratiche() {
 
   const handleRequestNewDate = async (praticaId: string) => {
     try {
+      // Prima otteniamo i dati esistenti della pratica
+      const { data: pratica, error: fetchError } = await supabase
+        .from('practices')
+        .select('*')
+        .eq('id', praticaId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Poi aggiorniamo solo i campi relativi alla richiesta
       const { error } = await supabase
         .from('practices')
         .update({ 
           hearing_confirmed: false,
-          hearing_needs_reschedule: true
+          hearing_needs_reschedule: true,
+          // Manteniamo gli altri dati dell'audizione
+          hearing_date: pratica.hearing_date,
+          hearing_link: pratica.hearing_link
         })
         .eq('id', praticaId)
 
@@ -156,16 +182,17 @@ export default function LeMiePratiche() {
           {pratiche.map((pratica) => (
             <div key={pratica.id} className="border rounded-lg p-6 bg-white shadow-sm">
               <div className="flex justify-between items-start">
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1">
+                  {/* Info Pratica */}
                   <div>
                     <h2 className="text-xl font-semibold">Pratica #{pratica.pratica_number}</h2>
                     <p className="text-gray-600">Dipendente: {pratica.employee_name}</p>
-                    <p className="text-gray-600">Contratto: {pratica.contract_types?.name || pratica.contract_type}</p>
+                    <p className="text-gray-600">Contratto: {pratica.contract_type}</p>
                     <p className="text-gray-600">Stato: {pratica.status}</p>
                   </div>
 
                   {/* Documenti Allegati */}
-                  <div className="mt-4">
+                  <div className="border-t pt-4">
                     <h3 className="font-medium mb-2">Documenti Allegati:</h3>
                     <div className="space-y-2">
                       {pratica.documents && Array.isArray(pratica.documents) && pratica.documents.length > 0 ? (
