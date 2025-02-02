@@ -223,7 +223,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // Salva la pratica (mantenuto invariato)
+      // Salva la pratica
       const { data: practice, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -231,7 +231,7 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
           employee_name: formData.employeeName,
           employee_fiscal_code: formData.fiscalCode,
           contract_type: formData.contractType,
-          status: 'pending_payment',
+          status: 'pending_payment',  // Importante: stato iniziale
           practice_number: `P${Date.now()}`,
           fiscal_code: formData.fiscalCode,
           documents: formData.documents,
@@ -244,7 +244,8 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
             contract_value: formData.contractValue || 0,
           },
           created_at: new Date().toISOString(),
-          payment_status: 'pending'
+          payment_status: 'pending',
+          total_amount: totalPrice  // Aggiungiamo l'importo totale
         })
         .select()
         .single()
@@ -255,9 +256,11 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
         return
       }
 
-      // SOLO reindirizzamento a EasyCommerce
-      const easyCommerceUrl = 'https://easy-webreport.ccd.uniroma2.it/easyCommerce/test'
-      window.open(easyCommerceUrl, '_blank')
+      // Apri EasyCommerce in una nuova tab
+      window.open(PAYMENT_PORTAL_URL, '_blank')
+      
+      // Reindirizza l'utente a Le Mie Pratiche
+      router.push('/dashboard/user/le-mie-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
