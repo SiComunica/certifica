@@ -22,30 +22,19 @@ export default function LeMiePratiche() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      // Carica solo le pratiche in corso
+      console.log('Caricamento pratiche per user:', user?.id) // Debug
+      
       const { data, error } = await supabase
         .from('practices')
-        .select(`
-          *,
-          contract_types:contract_type (
-            name
-          )
-        `)
+        .select('*')
         .eq('user_id', user?.id)
-        .in('status', ['pending_payment', 'pending_review']) // Solo pratiche in attesa di pagamento o revisione
+        .eq('status', 'pending_payment')
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      // Formatta i dati
-      const formattedPratiche = data?.map(pratica => ({
-        ...pratica,
-        contract_type_name: pratica.contract_types?.name,
-        pratica_number: `P${String(pratica.id).substring(0, 8).toUpperCase()}`
-      })) || []
-
-      console.log('Pratiche caricate:', formattedPratiche) // Debug
-      setPratiche(formattedPratiche)
+      console.log('Pratiche trovate:', data) // Debug
+      setPratiche(data || [])
     } catch (error) {
       console.error('Errore:', error)
       toast.error("Errore nel caricamento delle pratiche")
