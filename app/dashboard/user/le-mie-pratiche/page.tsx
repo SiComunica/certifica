@@ -28,11 +28,11 @@ export default function LeMiePratiche() {
         .from('practices')
         .select(`
           *,
-          contract_types:contract_type (
+          contract_types (
             name,
             id
           ),
-          users:user_id (
+          profiles:user_id (
             email
           )
         `)
@@ -50,7 +50,8 @@ export default function LeMiePratiche() {
       // Formatta i dati includendo l'email dell'utente
       const formattedPratiche = data?.map(pratica => ({
         ...pratica,
-        user_email: pratica.users?.email
+        user_email: pratica.profiles?.email,
+        contract_type_name: pratica.contract_types?.name
       }))
 
       setPratiche(formattedPratiche || [])
@@ -221,7 +222,7 @@ export default function LeMiePratiche() {
                     <h2 className="text-xl font-semibold">Pratica #{pratica.pratica_number}</h2>
                     <div className="mt-2 space-y-1 text-sm text-gray-600">
                       <p>Dipendente: {pratica.employee_name}</p>
-                      <p>Contratto: {pratica.contract_types?.name || pratica.contract_type}</p>
+                      <p>Contratto: {pratica.contract_type_name || pratica.contract_types?.name || pratica.contract_type}</p>
                       <p>Stato: {pratica.status}</p>
                       <p>Creata da: {pratica.user_email}</p>
                       <p>Data creazione: {new Date(pratica.created_at).toLocaleString('it-IT')}</p>
