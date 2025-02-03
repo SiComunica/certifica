@@ -40,104 +40,70 @@ export default function LeMiePratiche() {
   const router = useRouter()
 
   const loadPratiche = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-      const { data, error } = await supabase
-        .from('practices')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+    const { data } = await supabase
+      .from('practices')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
 
-      console.log('Pratiche caricate:', data)
-      
-      if (error) throw error
-      setPratiche(data || [])
-    } catch (error) {
-      console.error('Errore caricamento:', error)
-      toast.error("Errore nel caricamento delle pratiche")
-    } finally {
-      setLoading(false)
-    }
+    setPratiche(data || [])
+    setLoading(false)
   }
 
   const handleUploadRicevuta = async (praticaId: string) => {
-    const fileInput = document.createElement('input')
-    fileInput.type = 'file'
-    fileInput.accept = '.pdf,.jpg,.jpeg,.png'
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/pdf'
     
-    fileInput.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0]
       if (!file) return
 
       try {
-        toast.info('Caricamento in corso...')
+        toast.info('Caricamento ricevuta in corso...')
+
+        const fileName = `ricevuta_${Date.now()}.pdf`
         
-        // Upload file
-        const fileName = `ricevute_${praticaId}_${file.name}`
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        await supabase.storage
           .from('uploads')
           .upload(fileName, file)
 
-        if (uploadError) throw uploadError
-
-        console.log('File caricato, aggiorno la pratica...')
-
-        // Prima otteniamo la pratica corrente
-        const { data: pratica, error: fetchError } = await supabase
-          .from('practices')
-          .select('*')
-          .eq('id', praticaId)
-          .single()
-
-        if (fetchError) throw fetchError
-
-        // Poi aggiorniamo con i dati corretti
-        const { error: updateError } = await supabase
+        await supabase
           .from('practices')
           .update({
             payment_receipt: fileName,
-            status: 'review_pending',
-            payment_status: 'completed',
-            updated_at: new Date().toISOString()
+            status: 'pending_review'
           })
-          .match({ id: praticaId })
+          .eq('id', praticaId)
 
-        if (updateError) {
-          console.error('Errore dettagliato update:', updateError)
-          throw updateError
-        }
-
-        console.log('Pratica aggiornata con successo')
-        toast.success('Ricevuta caricata con successo')
+        toast.success('Ricevuta caricata con successo!')
         await loadPratiche()
       } catch (error) {
-        console.error('Errore completo:', error)
-        toast.error("Errore nel caricamento della ricevuta")
+        toast.error('Errore nel caricamento della ricevuta')
       }
     }
 
-    fileInput.click()
+    input.click()
   }
 
   const handleInviaPratica = async (praticaId: string) => {
     try {
-      const { error } = await supabase
+      toast.info('Invio pratica in corso...')
+
+      await supabase
         .from('practices')
         .update({
           status: 'submitted',
-          submitted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          submitted_at: new Date().toISOString()
         })
-        .match({ id: praticaId })
+        .eq('id', praticaId)
 
-      if (error) throw error
-
-      toast.success('Pratica inviata alla commissione')
+      toast.success('Pratica inviata alla commissione!')
       await loadPratiche()
     } catch (error) {
-      console.error('Errore invio:', error)
       toast.error("Errore nell'invio della pratica")
     }
   }
@@ -171,62 +137,38 @@ export default function LeMiePratiche() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {pratiche.map((pratica) => (
-            <div 
-              key={pratica.id}
-              className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold">
-                  Pratica #{pratica.practice_number}
-                </h3>
-                <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
-                  {pratica.status}
-                </span>
-              </div>
-
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <p>
-                  <span className="font-medium">Dipendente:</span>{' '}
-                  {pratica.employee_name}
+            <div key={pratica.id} className="bg-white shadow-lg rounded-lg p-6">
+              <h3 className="text-lg font-bold mb-4">
+                Pratica #{pratica.practice_number}
+              </h3>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">
+                  Stato: <span className="font-semibold">{pratica.status}</span>
                 </p>
-                <p>
-                  <span className="font-medium">Data creazione:</span>{' '}
-                  {new Date(pratica.created_at).toLocaleDateString('it-IT')}
-                </p>
-                
                 {pratica.payment_receipt && (
-                  <p>
-                    <span className="font-medium">Ricevuta:</span>{' '}
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${pratica.payment_receipt}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      Visualizza ricevuta
-                    </a>
+                  <p className="text-sm text-green-600 mt-2">
+                    ✓ Ricevuta caricata
                   </p>
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {pratica.status === 'pending_payment' && (
                   <Button 
                     onClick={() => handleUploadRicevuta(pratica.id)}
                     className="w-full"
-                    variant="outline"
                   >
-                    Carica ricevuta di pagamento
+                    Carica Ricevuta
                   </Button>
                 )}
 
-                {(pratica.status === 'review_pending' || pratica.payment_receipt) && (
+                {pratica.status === 'pending_review' && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
-                    className="w-full"
-                    variant="outline"
+                    className="w-full bg-green-600 hover:bg-green-700"
                   >
-                    Invia alla commissione
+                    Invia alla Commissione
                   </Button>
                 )}
               </div>
