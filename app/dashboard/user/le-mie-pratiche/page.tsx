@@ -16,7 +16,6 @@ export default function LeMiePratiche() {
 
   const loadPratiche = async () => {
     try {
-      // Verifica sessione
       const { data: session } = await supabase.auth.getSession()
       
       if (!session?.session?.user) {
@@ -28,9 +27,16 @@ export default function LeMiePratiche() {
 
       const user = session.session.user
       console.log('Sessione valida per:', user.email)
-      console.log('User ID:', user.id)
 
-      // Query pratiche con filtro status corretto
+      // Prima query senza filtro per vedere tutti gli stati
+      const { data: allPractices } = await supabase
+        .from('practices')
+        .select('status')
+        .eq('user_id', user.id)
+
+      console.log('Stati presenti:', allPractices?.map(p => p.status))
+
+      // Query pratiche filtrata
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
@@ -38,16 +44,16 @@ export default function LeMiePratiche() {
         .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
         .order('created_at', { ascending: false })
 
-      console.log('Query pratiche completa:', {
-        userId: user.id,
-        stati: ['pending_payment', 'pending_review', 'submitted_to_commission'],
-        query: 'SELECT * FROM practices WHERE user_id = ? AND status IN (?) ORDER BY created_at DESC',
-        risultati: practices?.length || 0,
-        primoStato: practices?.[0]?.status,
-        ultimoStato: practices?.[practices.length - 1]?.status
-      })
-
       if (error) throw error
+
+      // Usa Array.from invece di spread operator per Set
+      const uniqueStates = Array.from(new Set(practices?.map(p => p.status) || []))
+
+      console.log('Pratiche filtrate per stato:', {
+        totali: allPractices?.length || 0,
+        filtrate: practices?.length || 0,
+        statiTrovati: uniqueStates
+      })
 
       if (!practices || practices.length === 0) {
         console.log('Nessuna pratica trovata')
