@@ -100,8 +100,9 @@ export default function LeMiePratiche() {
         const { error: updateError } = await supabase
           .from('practices')
           .update({ 
-            status: 'pending_review',
-            payment_receipt: fileName
+            status: 'review_pending',
+            payment_receipt: fileName,
+            payment_status: 'completed'
           })
           .eq('id', praticaId)
 
@@ -221,7 +222,7 @@ export default function LeMiePratiche() {
                   </Button>
                 )}
 
-                {pratica.status === 'pending_review' && (
+                {pratica.status === 'review_pending' && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
                     className="w-full"
