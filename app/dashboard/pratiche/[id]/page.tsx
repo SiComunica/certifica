@@ -219,21 +219,29 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
         
         const fileName = `ricevuta_${id}_${Date.now()}.pdf`
         
-        await supabase.storage
+        // 1. Upload file
+        const { error: uploadError } = await supabase.storage
           .from('uploads')
           .upload(fileName, file)
 
-        await supabase
+        if (uploadError) throw uploadError
+
+        // 2. Aggiorna pratica con gli stati corretti del database
+        const { error: updateError } = await supabase
           .from('practices')
           .update({
             payment_receipt: fileName,
-            status: 'pending_review'
+            status: 'payment_verified',  // Stato corretto dal database
+            payment_status: 'completed'
           })
           .eq('id', id)
+
+        if (updateError) throw updateError
 
         toast.success('Ricevuta caricata con successo')
         window.location.reload()
       } catch (error) {
+        console.error('Errore completo:', error)
         toast.error('Errore nel caricamento della ricevuta')
       }
     }
@@ -242,32 +250,18 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
   }
 
   const handleInviaPratica = async () => {
-    if (!practice) return
-
     try {
-      toast.info('Invio pratica in corso...')
-
       const { error } = await supabase
         .from('practices')
         .update({
-          status: 'submitted',
+          status: 'submitted_to_commission',  // Stato corretto dal database
           submitted_at: new Date().toISOString()
         })
-        .eq('id', practice.id)
+        .eq('id', id)
 
       if (error) throw error
-
-      // Ricarica i dati della pratica
-      const { data: updatedPractice } = await supabase
-        .from('practices')
-        .select('*')
-        .eq('id', practice.id)
-        .single()
-
-      if (updatedPractice) {
-        setPractice(updatedPractice)
-        toast.success('Pratica inviata alla commissione!')
-      }
+      toast.success('Pratica inviata alla commissione')
+      window.location.reload()
     } catch (error) {
       console.error('Errore:', error)
       toast.error("Errore nell'invio della pratica")
@@ -472,13 +466,26 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                         </a>
                       </div>
                     ) : (
-                      <div className="text-center">
-                        <Button onClick={handleUploadRicevuta}>
-                          Carica Ricevuta di Pagamento
-                        </Button>
+                      <div className="text-center space-y-4">
+                        {practice?.status === 'pending_payment' && (
+                          <Button onClick={handleUploadRicevuta}>
+                            Carica Ricevuta di Pagamento
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
+
+                  {practice?.status === 'payment_verified' && (
+                    <div className="mt-4">
+                      <Button 
+                        onClick={handleInviaPratica}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Invia alla Commissione
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
