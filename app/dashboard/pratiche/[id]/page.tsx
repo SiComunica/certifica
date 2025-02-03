@@ -206,58 +206,39 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
   }
 
   const handleUploadRicevuta = async () => {
-    if (!practice) return
-
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'application/pdf'
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.pdf,.jpg,.jpeg,.png'
     
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0]
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
       if (!file) return
 
       try {
         toast.info('Caricamento ricevuta in corso...')
         
-        const fileName = `ricevuta_${practice.id}_${Date.now()}.pdf`
+        const fileName = `ricevuta_${id}_${Date.now()}.pdf`
         
-        // Upload file
-        const { error: uploadError } = await supabase.storage
+        await supabase.storage
           .from('uploads')
           .upload(fileName, file)
 
-        if (uploadError) throw uploadError
-
-        // Aggiorna pratica
-        const { error: updateError } = await supabase
+        await supabase
           .from('practices')
           .update({
             payment_receipt: fileName,
-            status: 'review_pending',
-            payment_status: 'completed'
+            status: 'pending_review'
           })
-          .eq('id', practice.id)
+          .eq('id', id)
 
-        if (updateError) throw updateError
-
-        // Ricarica i dati della pratica
-        const { data: updatedPractice } = await supabase
-          .from('practices')
-          .select('*')
-          .eq('id', practice.id)
-          .single()
-
-        if (updatedPractice) {
-          setPractice(updatedPractice)
-          toast.success('Ricevuta caricata con successo!')
-        }
+        toast.success('Ricevuta caricata con successo')
+        window.location.reload()
       } catch (error) {
-        console.error('Errore:', error)
         toast.error('Errore nel caricamento della ricevuta')
       }
     }
 
-    input.click()
+    fileInput.click()
   }
 
   const handleInviaPratica = async () => {
@@ -475,54 +456,28 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
 
                 <div className="mt-8 pt-6 border-t border-gray-100">
                   <h2 className="text-sm font-medium text-gray-500 mb-4">
-                    Documenti e Azioni
+                    Documenti Allegati
                   </h2>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      {practice?.payment_receipt ? (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                            <span>Ricevuta di pagamento</span>
-                          </div>
-                          <a 
-                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            Visualizza
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="text-center text-gray-500">
-                          Nessuna ricevuta caricata
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      {practice?.status === 'pending_payment' && (
-                        <Button 
-                          onClick={handleUploadRicevuta}
-                          className="flex-1"
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    {practice?.payment_receipt ? (
+                      <div className="flex justify-between items-center">
+                        <span>Ricevuta di pagamento caricata</span>
+                        <a 
+                          href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
                         >
-                          <Upload className="h-4 w-4 mr-2" />
+                          Visualizza
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <Button onClick={handleUploadRicevuta}>
                           Carica Ricevuta di Pagamento
                         </Button>
-                      )}
-
-                      {practice?.status === 'review_pending' && (
-                        <Button 
-                          onClick={handleInviaPratica}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Invia alla Commissione
-                        </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
