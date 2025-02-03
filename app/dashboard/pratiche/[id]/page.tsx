@@ -523,23 +523,11 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                   </h2>
                   <div className="space-y-4">
                     <div className="bg-gray-50 rounded-lg p-4">
-                      {practice?.documents && typeof practice.documents === 'string' ? (
+                      {practice?.documents && Object.values(practice.documents)[0] ? (
                         <div className="flex justify-between items-center">
                           <span>Istanza firmata</span>
                           <a 
-                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${JSON.parse(practice.documents).istanza}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            Visualizza
-                          </a>
-                        </div>
-                      ) : practice?.documents && typeof practice.documents === 'object' ? (
-                        <div className="flex justify-between items-center">
-                          <span>Istanza firmata</span>
-                          <a 
-                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${(practice.documents as any).istanza}`}
+                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${Object.values(practice.documents)[0]}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
