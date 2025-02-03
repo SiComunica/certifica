@@ -67,10 +67,7 @@ export default function LeMiePratiche() {
 
   const handleUploadRicevuta = async (praticaId: string) => {
     const pratica = pratiche.find(p => p.id === praticaId)
-    if (!pratica) {
-      toast.error("Pratica non trovata")
-      return
-    }
+    if (!pratica) return
 
     const fileInput = document.createElement('input')
     fileInput.type = 'file'
@@ -85,17 +82,22 @@ export default function LeMiePratiche() {
         
         const fileName = `ricevute/${praticaId}/${file.name}`
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('documents')
+          .from('uploads')
           .upload(fileName, file)
 
         if (uploadError) throw uploadError
+
+        const newDocuments = {
+          ...pratica.documents,
+          payment_receipt: fileName
+        }
 
         const { error: updateError } = await supabase
           .from('practices')
           .update({ 
             status: 'pending_review',
             payment_receipt: fileName,
-            documents: { ...pratica.documents, payment_receipt: fileName }
+            documents: newDocuments
           })
           .eq('id', praticaId)
 
@@ -196,7 +198,7 @@ export default function LeMiePratiche() {
                   <ul className="ml-4 mt-2">
                     {pratica.documents && Object.entries(pratica.documents).map(([key, value]) => (
                       <li key={key} className="text-blue-600 hover:underline">
-                        <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${value}`} 
+                        <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${value}`} 
                            target="_blank" 
                            rel="noopener noreferrer">
                           {key === 'payment_receipt' ? 'Ricevuta di pagamento' : 
@@ -220,7 +222,7 @@ export default function LeMiePratiche() {
                   </Button>
                 )}
 
-                {pratica.status === 'pending_review' && (
+                {pratica.status === 'pending_review' && pratica.payment_receipt && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
                     className="w-full"
