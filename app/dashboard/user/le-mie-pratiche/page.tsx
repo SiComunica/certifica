@@ -16,33 +16,21 @@ export default function LeMiePratiche() {
 
   const loadPratiche = async () => {
     try {
-      const { data: session } = await supabase.auth.getSession()
-      
-      if (!session?.session?.user) {
-        console.error('Sessione non valida')
-        toast.error("Sessione scaduta, effettua di nuovo il login")
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Utente non autenticato")
         router.push('/login')
         return
       }
 
-      const user = session.session.user
-      console.log('Sessione valida per:', user.email)
-
-      // Prima query senza filtro per vedere tutti gli stati
-      const { data: allPractices } = await supabase
-        .from('practices')
-        .select('status')
-        .eq('user_id', user.id)
-
-      console.log('Stati presenti:', allPractices?.map(p => p.status))
-
-      // Query pratiche filtrata
       const { data: practices, error } = await supabase
         .from('practices')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['pending_payment', 'pending_review', 'submitted_to_commission'])
+        .eq('status', 'pending_payment')
         .order('created_at', { ascending: false })
+
+      console.log('Pratiche raw:', practices)
 
       if (error) throw error
 
@@ -50,8 +38,7 @@ export default function LeMiePratiche() {
       const uniqueStates = Array.from(new Set(practices?.map(p => p.status) || []))
 
       console.log('Pratiche filtrate per stato:', {
-        totali: allPractices?.length || 0,
-        filtrate: practices?.length || 0,
+        totali: practices?.length || 0,
         statiTrovati: uniqueStates
       })
 
@@ -94,7 +81,7 @@ export default function LeMiePratiche() {
         }
       }) || []
 
-      console.log('Pratiche formattate finale:', formattedPratiche)
+      console.log('Pratiche formattate:', formattedPratiche)
       setPratiche(formattedPratiche)
       setIsLoading(false)
 
@@ -255,7 +242,7 @@ export default function LeMiePratiche() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto p-4">
       <div className="flex items-center mb-6">
         <Button 
           variant="ghost" 
@@ -278,75 +265,60 @@ export default function LeMiePratiche() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {pratiche.map((pratica) => (
-            <div 
-              key={pratica.id}
-              className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold">
-                  Pratica #{pratica.pratica_number}
-                </h3>
-                <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
-                  {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
-                   pratica.status === 'pending_review' ? 'In revisione' : 
-                   pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
-                   pratica.status}
-                </span>
+          {pratiche.map((pratica) => {
+            console.log('Rendering pratica:', pratica)
+            return (
+              <div 
+                key={pratica.id}
+                className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-semibold">
+                    Pratica #{pratica.pratica_number || 'N/A'}
+                  </h3>
+                  <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
+                    {pratica.status}
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-sm text-gray-600 mb-4">
+                  <p>
+                    <span className="font-medium">Status:</span>{' '}
+                    {pratica.status}
+                  </p>
+                  <p>
+                    <span className="font-medium">ID:</span>{' '}
+                    {pratica.id}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {pratica.status === 'pending_payment' && (
+                    <Button 
+                      onClick={() => {
+                        console.log('Click su carica ricevuta per pratica:', pratica)
+                        handleUploadRicevuta(pratica.id)
+                      }}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      Carica ricevuta di pagamento
+                    </Button>
+                  )}
+
+                  {pratica.status === 'pending_review' && (
+                    <Button 
+                      onClick={() => handleInviaCommissione(pratica.id)}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      Invia alla commissione
+                    </Button>
+                  )}
+                </div>
               </div>
-
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <p>
-                  <span className="font-medium">Dipendente:</span>{' '}
-                  {pratica.employee_name || 'Non specificato'}
-                </p>
-                <p>
-                  <span className="font-medium">Tipo contratto:</span>{' '}
-                  {pratica.contract_type_name}
-                </p>
-                <p>
-                  <span className="font-medium">Data creazione:</span>{' '}
-                  {new Date(pratica.created_at).toLocaleDateString('it-IT')}
-                </p>
-                <p>
-                  <span className="font-medium">Codice univoco:</span>{' '}
-                  {pratica.pratica_number}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                {pratica.status === 'pending_payment' && (
-                  <Button 
-                    onClick={() => handleUploadRicevuta(pratica.id)}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    Carica ricevuta di pagamento
-                  </Button>
-                )}
-
-                {pratica.status === 'pending_review' && (
-                  <Button 
-                    onClick={() => handleInviaCommissione(pratica.id)}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    Invia alla commissione
-                  </Button>
-                )}
-
-                {pratica.status === 'submitted_to_commission' && (
-                  <Button 
-                    onClick={() => handleAudizione(pratica.id)}
-                    className="w-full"
-                    variant="secondary"
-                  >
-                    Gestisci audizione
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
