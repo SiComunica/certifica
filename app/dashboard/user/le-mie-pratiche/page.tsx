@@ -4,9 +4,34 @@ import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Pratica } from "../types"
 import { ArrowLeft, FileText, Send, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase/client"
+import { Input } from "@/components/ui/input"
+
+interface Document {
+  id: string
+  file_name: string
+  file_path: string
+}
+
+interface Pratica {
+  id: string
+  pratica_number: string
+  status: string
+  created_at: string
+  contract_types?: {
+    name: string
+    code: string
+  }
+  employees?: {
+    full_name: string
+    fiscal_code: string
+  }
+  documents: Document[]
+  contract_type_name?: string
+  employee_name?: string
+}
 
 export default function LeMiePratiche() {
   const [pratiche, setPratiche] = useState<Pratica[]>([])
@@ -25,9 +50,23 @@ export default function LeMiePratiche() {
 
       const { data: practices, error } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          contract_types (
+            name,
+            code
+          ),
+          employees (
+            full_name,
+            fiscal_code
+          ),
+          documents (
+            id,
+            file_name,
+            file_path
+          )
+        `)
         .eq('user_id', user.id)
-        .eq('status', 'pending_payment')
         .order('created_at', { ascending: false })
 
       console.log('Pratiche raw:', practices)
@@ -48,38 +87,13 @@ export default function LeMiePratiche() {
         return
       }
 
-      // Query contratti
-      const { data: contractTypes } = await supabase
-        .from('contract_types')
-        .select('*')
-
-      // Crea mappa dei contratti con normalizzazione
-      const contractMap = new Map()
-      contractTypes?.forEach(contract => {
-        contractMap.set(contract.id.toString(), contract.name)
-        contractMap.set(contract.code.toLowerCase(), contract.name)
-        contractMap.set(contract.name.toLowerCase(), contract.name)
-      })
-
-      console.log('Mappa contratti:', Object.fromEntries(contractMap))
-
       // Formatta dati con fallback
-      const formattedPratiche = practices?.map(pratica => {
-        const contractType = pratica.contract_type?.toString().toLowerCase()
-        const contractName = contractMap.get(contractType) || 'Tipo contratto non specificato'
-        
-        console.log('Mapping contratto:', {
-          original: pratica.contract_type,
-          normalized: contractType,
-          mapped: contractName
-        })
-
-        return {
-          ...pratica,
-          contract_type_name: contractName,
-          user_email: user.email
-        }
-      }) || []
+      const formattedPratiche = practices?.map(pratica => ({
+        ...pratica,
+        contract_type_name: pratica.contract_types?.name || 'Non specificato',
+        employee_name: pratica.employees?.full_name || 'Non specificato',
+        documents: pratica.documents || []
+      }))
 
       console.log('Pratiche formattate:', formattedPratiche)
       setPratiche(formattedPratiche)
@@ -100,50 +114,54 @@ export default function LeMiePratiche() {
     loadPratiche()
   }, [])
 
-  const handleUploadReceipt = async (praticaId: string, file: File) => {
-    try {
-      // 1. Carica il file
-      const { data: uploadData, error: uploadError } = await supabase
-        .storage
-        .from('receipts')
-        .upload(`${praticaId}/${file.name}`, file)
+  const handleUploadRicevuta = async (praticaId: string) => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.pdf,.jpg,.jpeg,.png'
+    
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
 
-      if (uploadError) throw uploadError
+      try {
+        const fileName = `ricevute/${praticaId}/${file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, file)
 
-      // 2. Aggiorna la pratica
-      const { error: updateError } = await supabase
-        .from('practices')
-        .update({ 
-          payment_receipt: uploadData.path,
-          status: 'pending_review'  // Cambia lo stato
-        })
-        .eq('id', praticaId)
+        if (uploadError) throw uploadError
 
-      if (updateError) throw updateError
+        const { error: updateError } = await supabase
+          .from('practices')
+          .update({ status: 'pending_review' })
+          .eq('id', praticaId)
 
-      toast.success("Ricevuta caricata con successo")
-      loadPratiche()  // Ricarica le pratiche
-    } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Errore nel caricamento della ricevuta")
+        if (updateError) throw updateError
+
+        toast.success('Ricevuta caricata con successo')
+        loadPratiche() // Ricarica le pratiche
+      } catch (error) {
+        console.error('Errore upload:', error)
+        toast.error("Errore nel caricamento della ricevuta")
+      }
     }
+
+    fileInput.click()
   }
 
-  const handleSubmitToCommission = async (praticaId: string) => {
+  const handleInviaCommissione = async (praticaId: string) => {
     try {
       const { error } = await supabase
         .from('practices')
-        .update({ 
-          status: 'submitted_to_commission',
-          submitted_at: new Date().toISOString()
-        })
+        .update({ status: 'submitted_to_commission' })
         .eq('id', praticaId)
 
       if (error) throw error
-      toast.success("Pratica inviata alla commissione")
+
+      toast.success('Pratica inviata alla commissione')
       loadPratiche()
     } catch (error) {
-      console.error('Errore:', error)
+      console.error('Errore invio:', error)
       toast.error("Errore nell'invio alla commissione")
     }
   }
@@ -226,16 +244,6 @@ export default function LeMiePratiche() {
     }
   }
 
-  const handleUploadRicevuta = async (praticaId: string) => {
-    // TODO: Implementare upload ricevuta
-    toast.info("Funzionalità in sviluppo")
-  }
-
-  const handleInviaCommissione = async (praticaId: string) => {
-    // TODO: Implementare invio a commissione
-    toast.info("Funzionalità in sviluppo")
-  }
-
   const handleAudizione = async (praticaId: string) => {
     // TODO: Implementare gestione audizione
     toast.info("Funzionalità in sviluppo")
@@ -277,28 +285,43 @@ export default function LeMiePratiche() {
                     Pratica #{pratica.pratica_number || 'N/A'}
                   </h3>
                   <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
-                    {pratica.status}
+                    {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
+                     pratica.status === 'pending_review' ? 'In revisione' : 
+                     pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
+                     pratica.status}
                   </span>
                 </div>
 
                 <div className="space-y-2 text-sm text-gray-600 mb-4">
                   <p>
-                    <span className="font-medium">Status:</span>{' '}
-                    {pratica.status}
+                    <span className="font-medium">Dipendente:</span>{' '}
+                    {pratica.employee_name}
                   </p>
                   <p>
-                    <span className="font-medium">ID:</span>{' '}
-                    {pratica.id}
+                    <span className="font-medium">Tipo contratto:</span>{' '}
+                    {pratica.contract_type_name}
                   </p>
+                  <p>
+                    <span className="font-medium">Data creazione:</span>{' '}
+                    {new Date(pratica.created_at).toLocaleDateString('it-IT')}
+                  </p>
+                  
+                  {pratica.documents.length > 0 && (
+                    <div>
+                      <span className="font-medium">Documenti:</span>
+                      <ul className="ml-4">
+                        {pratica.documents.map(doc => (
+                          <li key={doc.id}>{doc.file_name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   {pratica.status === 'pending_payment' && (
                     <Button 
-                      onClick={() => {
-                        console.log('Click su carica ricevuta per pratica:', pratica)
-                        handleUploadRicevuta(pratica.id)
-                      }}
+                      onClick={() => handleUploadRicevuta(pratica.id)}
                       className="w-full"
                       variant="outline"
                     >
