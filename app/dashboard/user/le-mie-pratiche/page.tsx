@@ -61,39 +61,38 @@ export default function LeMiePratiche() {
         return
       }
 
-      // Query contratti con debug
-      const { data: contractTypes, error: contractError } = await supabase
+      // Query contratti
+      const { data: contractTypes } = await supabase
         .from('contract_types')
         .select('*')
 
-      console.log('Tipi di contratto trovati:', contractTypes)
+      // Crea mappa dei contratti con normalizzazione
+      const contractMap = new Map()
+      contractTypes?.forEach(contract => {
+        contractMap.set(contract.id.toString(), contract.name)
+        contractMap.set(contract.code.toLowerCase(), contract.name)
+        contractMap.set(contract.name.toLowerCase(), contract.name)
+      })
 
-      if (contractError) {
-        console.error('Errore query contratti:', contractError)
-      }
+      console.log('Mappa contratti:', Object.fromEntries(contractMap))
 
-      // Mappa contratti con debug
-      const contractMap = new Map(
-        contractTypes?.map(contract => {
-          console.log('Mapping contratto:', contract)
-          return [contract.id.toString(), contract.name]
-        }) || []
-      )
-
-      // Formatta dati con debug
-      const formattedPratiche = practices.map(pratica => {
-        const contractName = contractMap.get(pratica.contract_type)
-        console.log('Formattazione pratica:', {
-          praticaId: pratica.id,
-          contractType: pratica.contract_type,
-          mappedName: contractName
+      // Formatta dati con fallback
+      const formattedPratiche = practices?.map(pratica => {
+        const contractType = pratica.contract_type?.toString().toLowerCase()
+        const contractName = contractMap.get(contractType) || 'Tipo contratto non specificato'
+        
+        console.log('Mapping contratto:', {
+          original: pratica.contract_type,
+          normalized: contractType,
+          mapped: contractName
         })
+
         return {
           ...pratica,
-          contract_type_name: contractName || pratica.contract_type,
+          contract_type_name: contractName,
           user_email: user.email
         }
-      })
+      }) || []
 
       console.log('Pratiche formattate finale:', formattedPratiche)
       setPratiche(formattedPratiche)
