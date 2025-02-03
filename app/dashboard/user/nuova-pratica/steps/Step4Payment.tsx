@@ -254,8 +254,8 @@ export default function Step4Payment({ formData, updateFormData, onSubmit, onBac
       // Reindirizza a EasyCommerce in una nuova tab
       window.open(PAYMENT_PORTAL_URL, '_blank')
       
-      // Reindirizza alla pagina Le Mie Pratiche
-      router.push('/dashboard/user/le-mie-pratiche')
+      // Reindirizza alla pagina Storico Pratiche
+      router.push('/dashboard/storico-pratiche')
 
     } catch (error) {
       console.error('Errore:', error)
