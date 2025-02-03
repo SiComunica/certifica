@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
-import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, FileText, History, CreditCard, Search, Clock, CheckCircle, XCircle, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {

@@ -349,31 +349,6 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* Aggiungiamo Le Mie Pratiche sotto il grid principale */}
-            <div className="mb-8">
-              <Card className="group hover:shadow-xl transition-all duration-300 border-none bg-white shadow-md">
-                <CardHeader>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-2 rounded-lg bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300">
-                      <FolderOpen className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="text-[#1e1e1e]">Le Mie Pratiche</CardTitle>
-                  </div>
-                  <CardDescription className="text-gray-600">
-                    Gestisci le tue pratiche in corso
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white transition-colors"
-                    onClick={() => router.push('/dashboard/user/le-mie-pratiche')}
-                  >
-                    Visualizza Pratiche
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Lista Pratiche Filtrate */}
             {searchQuery && (
               <div className="bg-white rounded-lg shadow-md p-6">
