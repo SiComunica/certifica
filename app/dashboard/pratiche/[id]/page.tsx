@@ -43,6 +43,7 @@ interface Practice {
   payment_receipt?: string
   payment_status?: string
   submitted_at?: string
+  documents?: { istanza: string }
 }
 
 interface EditablePractice {
@@ -52,7 +53,11 @@ interface EditablePractice {
   notes: string
 }
 
-type ContractType = 'Indeterminato' | 'Determinato' | 'Apprendistato' | 'Stage'
+type ContractType = {
+  id: number;
+  name: string;
+  description: string;
+}
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -72,6 +77,7 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
     contract_type: '',
     notes: ''
   })
+  const [contractTypes, setContractTypes] = useState<ContractType[]>([])
   
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -103,6 +109,16 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
 
     checkUserAndLoadPractice()
   }, [id, router, supabase])
+
+  const loadContractTypes = async () => {
+    const { data } = await supabase
+      .from('contract_types')
+      .select('*')
+    
+    if (data) {
+      setContractTypes(data)
+    }
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -268,6 +284,50 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
     }
   }
 
+  const handleUploadIstanza = async () => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.pdf,.jpg,.jpeg,.png'
+    
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      try {
+        toast.info('Caricamento istanza in corso...')
+        
+        const fileName = `istanza_${id}_${Date.now()}.pdf`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('uploads')
+          .upload(fileName, file)
+
+        if (uploadError) throw uploadError
+
+        const { error: updateError } = await supabase
+          .from('practices')
+          .update({
+            documents: { istanza: fileName }
+          })
+          .eq('id', id)
+
+        if (updateError) throw updateError
+
+        toast.success('Istanza caricata con successo')
+        window.location.reload()
+      } catch (error) {
+        console.error('Errore:', error)
+        toast.error('Errore nel caricamento dell\'istanza')
+      }
+    }
+
+    fileInput.click()
+  }
+
+  useEffect(() => {
+    loadContractTypes()
+  }, [])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -375,7 +435,7 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                           <Label>Tipo Contratto</Label>
                           <Select
                             value={editedPractice.contract_type}
-                            onValueChange={(value: ContractType) => setEditedPractice(prev => ({
+                            onValueChange={(value: string) => setEditedPractice(prev => ({
                               ...prev,
                               contract_type: value
                             }))}
@@ -384,10 +444,9 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                               <SelectValue placeholder="Seleziona tipo contratto" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Indeterminato">Indeterminato</SelectItem>
-                              <SelectItem value="Determinato">Determinato</SelectItem>
-                              <SelectItem value="Apprendistato">Apprendistato</SelectItem>
-                              <SelectItem value="Stage">Stage</SelectItem>
+                              {contractTypes.map(type => (
+                                <SelectItem key={type.id} value={type.id.toString()}>{type.name}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -432,7 +491,9 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Tipo Contratto</p>
-                          <p className="font-medium">{practice.contract_type}</p>
+                          <p className="font-medium">
+                            {contractTypes.find(t => t.id.toString() === practice?.contract_type)?.name || practice?.contract_type}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -452,40 +513,64 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                   <h2 className="text-sm font-medium text-gray-500 mb-4">
                     Documenti Allegati
                   </h2>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    {practice?.payment_receipt ? (
-                      <div className="flex justify-between items-center">
-                        <span>Ricevuta di pagamento caricata</span>
-                        <a 
-                          href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Visualizza
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="text-center space-y-4">
-                        {practice?.status === 'pending_payment' && (
-                          <Button onClick={handleUploadRicevuta}>
-                            Carica Ricevuta di Pagamento
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      {practice?.documents?.istanza ? (
+                        <div className="flex justify-between items-center">
+                          <span>Istanza firmata caricata</span>
+                          <a 
+                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.documents.istanza}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Visualizza
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <Button onClick={handleUploadIstanza}>
+                            Carica Istanza Firmata
                           </Button>
-                        )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      {practice?.payment_receipt ? (
+                        <div className="flex justify-between items-center">
+                          <span>Ricevuta di pagamento caricata</span>
+                          <a 
+                            href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Visualizza
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-4">
+                          {practice?.status === 'pending_payment' && (
+                            <Button onClick={handleUploadRicevuta}>
+                              Carica Ricevuta di Pagamento
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {practice?.status === 'payment_verified' && (
+                      <div className="mt-4">
+                        <Button 
+                          onClick={handleInviaPratica}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          Invia alla Commissione
+                        </Button>
                       </div>
                     )}
                   </div>
-
-                  {practice?.status === 'payment_verified' && (
-                    <div className="mt-4">
-                      <Button 
-                        onClick={handleInviaPratica}
-                        className="w-full bg-green-600 hover:bg-green-700"
-                      >
-                        Invia alla Commissione
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
