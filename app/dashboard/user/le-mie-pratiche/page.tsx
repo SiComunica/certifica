@@ -239,6 +239,21 @@ export default function LeMiePratiche() {
     }
   }
 
+  const handleUploadRicevuta = async (praticaId: string) => {
+    // TODO: Implementare upload ricevuta
+    toast.info("Funzionalità in sviluppo")
+  }
+
+  const handleInviaCommissione = async (praticaId: string) => {
+    // TODO: Implementare invio a commissione
+    toast.info("Funzionalità in sviluppo")
+  }
+
+  const handleAudizione = async (praticaId: string) => {
+    // TODO: Implementare gestione audizione
+    toast.info("Funzionalità in sviluppo")
+  }
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex items-center mb-6">
@@ -268,25 +283,67 @@ export default function LeMiePratiche() {
               key={pratica.id}
               className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
             >
-              <h3 className="text-lg font-semibold mb-2">
-                Pratica #{pratica.pratica_number}
-              </h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>
-                  <span className="font-medium">Tipo:</span>{' '}
-                  {pratica.contract_type_name}
-                </p>
-                <p>
-                  <span className="font-medium">Stato:</span>{' '}
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-semibold">
+                  Pratica #{pratica.pratica_number}
+                </h3>
+                <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
                   {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
                    pratica.status === 'pending_review' ? 'In revisione' : 
                    pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
                    pratica.status}
+                </span>
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-600 mb-4">
+                <p>
+                  <span className="font-medium">Dipendente:</span>{' '}
+                  {pratica.employee_name || 'Non specificato'}
                 </p>
                 <p>
-                  <span className="font-medium">Data:</span>{' '}
+                  <span className="font-medium">Tipo contratto:</span>{' '}
+                  {pratica.contract_type_name}
+                </p>
+                <p>
+                  <span className="font-medium">Data creazione:</span>{' '}
                   {new Date(pratica.created_at).toLocaleDateString('it-IT')}
                 </p>
+                <p>
+                  <span className="font-medium">Codice univoco:</span>{' '}
+                  {pratica.pratica_number}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {pratica.status === 'pending_payment' && (
+                  <Button 
+                    onClick={() => handleUploadRicevuta(pratica.id)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Carica ricevuta di pagamento
+                  </Button>
+                )}
+
+                {pratica.status === 'pending_review' && (
+                  <Button 
+                    onClick={() => handleInviaCommissione(pratica.id)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Invia alla commissione
+                  </Button>
+                )}
+
+                {pratica.status === 'submitted_to_commission' && (
+                  <Button 
+                    onClick={() => handleAudizione(pratica.id)}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    Gestisci audizione
+                  </Button>
+                )}
               </div>
             </div>
           ))}
