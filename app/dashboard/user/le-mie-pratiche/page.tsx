@@ -34,71 +34,31 @@ interface Pratica {
 }
 
 export default function LeMiePratiche() {
-  const [pratiche, setPratiche] = useState<Pratica[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const [pratiche, setPratiche] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   const loadPratiche = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        toast.error("Utente non autenticato")
-        router.push('/login')
-        return
-      }
+      if (!user) return
 
-      console.log('User ID:', user.id) // Debug
-
-      // Semplifichiamo la query
-      const { data: practices, error } = await supabase
+      const { data, error } = await supabase
         .from('practices')
-        .select(`
-          id,
-          pratica_number,
-          status,
-          created_at,
-          employee_name,
-          contract_type,
-          documents
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      console.log('Query result:', { data: practices, error }) // Debug
+      if (error) throw error
 
-      if (error) {
-        console.error('Query error:', error)
-        throw error
-      }
-
-      if (!practices) {
-        console.log('No practices found')
-        setPratiche([])
-        return
-      }
-
-      const formattedPratiche = practices.map(pratica => ({
-        ...pratica,
-        contract_type_name: pratica.contract_type || 'Non specificato',
-        employee_name: pratica.employee_name || 'Non specificato',
-        documents: Array.isArray(pratica.documents) ? pratica.documents : []
-      }))
-
-      console.log('Formatted practices:', formattedPratiche) // Debug
-      setPratiche(formattedPratiche)
-
+      setPratiche(data || [])
     } catch (error) {
-      console.error('Errore completo:', error)
+      console.error('Errore:', error)
       toast.error("Errore nel caricamento delle pratiche")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
-
-  useEffect(() => {
-    loadPratiche()
-  }, [])
 
   const handleUploadRicevuta = async (praticaId: string) => {
     const fileInput = document.createElement('input')
@@ -119,13 +79,16 @@ export default function LeMiePratiche() {
 
         const { error: updateError } = await supabase
           .from('practices')
-          .update({ status: 'pending_review' })
+          .update({ 
+            status: 'pending_review',
+            payment_receipt: fileName
+          })
           .eq('id', praticaId)
 
         if (updateError) throw updateError
 
         toast.success('Ricevuta caricata con successo')
-        loadPratiche() // Ricarica le pratiche
+        loadPratiche()
       } catch (error) {
         console.error('Errore upload:', error)
         toast.error("Errore nel caricamento della ricevuta")
@@ -135,105 +98,29 @@ export default function LeMiePratiche() {
     fileInput.click()
   }
 
-  const handleInviaCommissione = async (praticaId: string) => {
+  const handleInviaPratica = async (praticaId: string) => {
     try {
       const { error } = await supabase
         .from('practices')
-        .update({ status: 'submitted_to_commission' })
+        .update({ 
+          status: 'submitted_to_commission',
+          submitted_at: new Date().toISOString()
+        })
         .eq('id', praticaId)
 
       if (error) throw error
 
-      toast.success('Pratica inviata alla commissione')
+      toast.success('Pratica inviata con successo')
       loadPratiche()
     } catch (error) {
       console.error('Errore invio:', error)
-      toast.error("Errore nell'invio alla commissione")
+      toast.error("Errore nell'invio della pratica")
     }
   }
 
-  const handleConfirmHearing = async (praticaId: string) => {
-    try {
-      // Prima otteniamo i dati della pratica
-      const { data: pratica, error: fetchError } = await supabase
-        .from('practices')
-        .select(`
-          *,
-          users:user_id (
-            email,
-            full_name
-          )
-        `)
-        .eq('id', praticaId)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      // Log per l'amministratore
-      console.log(`Pratica #${pratica.pratica_number} - Utente: ${pratica.users.full_name} (${pratica.users.email})`)
-
-      const { error } = await supabase
-        .from('practices')
-        .update({ 
-          hearing_confirmed: true,
-          hearing_confirmation_date: new Date().toISOString(),
-          hearing_confirmation_user: pratica.users.full_name,
-          hearing_confirmation_number: pratica.pratica_number
-        })
-        .eq('id', praticaId)
-
-      if (error) throw error
-      toast.success(`Partecipazione confermata per pratica #${pratica.pratica_number}`)
-      loadPratiche()
-    } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Errore nella conferma")
-    }
-  }
-
-  const handleRequestNewDate = async (praticaId: string) => {
-    try {
-      // Prima otteniamo i dati della pratica
-      const { data: pratica, error: fetchError } = await supabase
-        .from('practices')
-        .select(`
-          *,
-          users:user_id (
-            email,
-            full_name
-          )
-        `)
-        .eq('id', praticaId)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      // Log per l'amministratore
-      console.log(`Pratica #${pratica.pratica_number} - Utente: ${pratica.users.full_name} (${pratica.users.email})`)
-
-      const { error } = await supabase
-        .from('practices')
-        .update({ 
-          hearing_confirmed: false,
-          hearing_needs_reschedule: true,
-          hearing_reschedule_user: pratica.users.full_name,
-          hearing_reschedule_number: pratica.pratica_number
-        })
-        .eq('id', praticaId)
-
-      if (error) throw error
-      toast.success(`Richiesta nuova data inviata per pratica #${pratica.pratica_number}`)
-      loadPratiche()
-    } catch (error) {
-      console.error('Errore:', error)
-      toast.error("Errore nella richiesta")
-    }
-  }
-
-  const handleAudizione = async (praticaId: string) => {
-    // TODO: Implementare gestione audizione
-    toast.info("Funzionalità in sviluppo")
-  }
+  useEffect(() => {
+    loadPratiche()
+  }, [])
 
   return (
     <div className="container mx-auto p-4">
@@ -249,7 +136,7 @@ export default function LeMiePratiche() {
         <h1 className="text-2xl font-bold">Le Mie Pratiche</h1>
       </div>
       
-      {isLoading ? (
+      {loading ? (
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -259,75 +146,57 @@ export default function LeMiePratiche() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {pratiche.map((pratica) => {
-            console.log('Rendering pratica:', pratica)
-            return (
-              <div 
-                key={pratica.id}
-                className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold">
-                    Pratica #{pratica.pratica_number || 'N/A'}
-                  </h3>
-                  <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
-                    {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
-                     pratica.status === 'pending_review' ? 'In revisione' : 
-                     pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
-                     pratica.status}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                  <p>
-                    <span className="font-medium">Dipendente:</span>{' '}
-                    {pratica.employee_name}
-                  </p>
-                  <p>
-                    <span className="font-medium">Tipo contratto:</span>{' '}
-                    {pratica.contract_type_name}
-                  </p>
-                  <p>
-                    <span className="font-medium">Data creazione:</span>{' '}
-                    {new Date(pratica.created_at).toLocaleDateString('it-IT')}
-                  </p>
-                  
-                  {pratica.documents.length > 0 && (
-                    <div>
-                      <span className="font-medium">Documenti:</span>
-                      <ul className="ml-4">
-                        {pratica.documents.map(doc => (
-                          <li key={doc.id}>{doc.file_name}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  {pratica.status === 'pending_payment' && (
-                    <Button 
-                      onClick={() => handleUploadRicevuta(pratica.id)}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      Carica ricevuta di pagamento
-                    </Button>
-                  )}
-
-                  {pratica.status === 'pending_review' && (
-                    <Button 
-                      onClick={() => handleInviaCommissione(pratica.id)}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      Invia alla commissione
-                    </Button>
-                  )}
-                </div>
+          {pratiche.map((pratica) => (
+            <div 
+              key={pratica.id}
+              className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-semibold">
+                  Pratica #{pratica.practice_number}
+                </h3>
+                <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
+                  {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
+                   pratica.status === 'pending_review' ? 'In revisione' : 
+                   pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
+                   pratica.status}
+                </span>
               </div>
-            )
-          })}
+
+              <div className="space-y-2 text-sm text-gray-600 mb-4">
+                <p>
+                  <span className="font-medium">Dipendente:</span>{' '}
+                  {pratica.employee_name || 'Non specificato'}
+                </p>
+                <p>
+                  <span className="font-medium">Data creazione:</span>{' '}
+                  {new Date(pratica.created_at).toLocaleDateString('it-IT')}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {pratica.status === 'pending_payment' && (
+                  <Button 
+                    onClick={() => handleUploadRicevuta(pratica.id)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Carica ricevuta di pagamento
+                  </Button>
+                )}
+
+                {pratica.status === 'pending_review' && (
+                  <Button 
+                    onClick={() => handleInviaPratica(pratica.id)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Invia pratica
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
