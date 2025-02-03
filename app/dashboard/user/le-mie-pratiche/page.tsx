@@ -63,51 +63,49 @@ export default function LeMiePratiche() {
   }
 
   const handleUploadRicevuta = async (praticaId: string) => {
-    console.log('Inizio upload per pratica:', praticaId)
-    
     const fileInput = document.createElement('input')
     fileInput.type = 'file'
     fileInput.accept = '.pdf,.jpg,.jpeg,.png'
     
     fileInput.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) {
-        console.log('Nessun file selezionato')
-        return
-      }
+      if (!file) return
 
       try {
-        console.log('File selezionato:', file.name)
         toast.info('Caricamento in corso...')
         
         // Upload file
         const fileName = `ricevute_${praticaId}_${file.name}`
-        console.log('Tentativo upload file:', fileName)
-        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('uploads')
           .upload(fileName, file)
 
-        if (uploadError) {
-          console.error('Errore upload:', uploadError)
-          throw uploadError
-        }
+        if (uploadError) throw uploadError
 
-        console.log('File caricato con successo:', uploadData)
+        console.log('File caricato, aggiorno la pratica...')
 
-        // Aggiorna pratica
-        console.log('Aggiornamento pratica...')
+        // Prima otteniamo la pratica corrente
+        const { data: pratica, error: fetchError } = await supabase
+          .from('practices')
+          .select('*')
+          .eq('id', praticaId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        // Poi aggiorniamo con i dati corretti
         const { error: updateError } = await supabase
           .from('practices')
-          .update({ 
-            status: 'review_pending',
+          .update({
             payment_receipt: fileName,
-            payment_status: 'completed'
+            status: 'review_pending',
+            payment_status: 'completed',
+            updated_at: new Date().toISOString()
           })
-          .eq('id', praticaId)
+          .match({ id: praticaId })
 
         if (updateError) {
-          console.error('Errore aggiornamento:', updateError)
+          console.error('Errore dettagliato update:', updateError)
           throw updateError
         }
 
@@ -125,14 +123,14 @@ export default function LeMiePratiche() {
 
   const handleInviaPratica = async (praticaId: string) => {
     try {
-      console.log('Invio pratica:', praticaId)
       const { error } = await supabase
         .from('practices')
-        .update({ 
-          status: 'submitted_to_commission',
-          submitted_at: new Date().toISOString()
+        .update({
+          status: 'submitted',
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .eq('id', praticaId)
+        .match({ id: praticaId })
 
       if (error) throw error
 
@@ -222,7 +220,7 @@ export default function LeMiePratiche() {
                   </Button>
                 )}
 
-                {pratica.status === 'review_pending' && (
+                {(pratica.status === 'review_pending' || pratica.payment_receipt) && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
                     className="w-full"
