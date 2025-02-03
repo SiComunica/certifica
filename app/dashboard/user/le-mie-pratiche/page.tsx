@@ -96,10 +96,12 @@ export default function LeMiePratiche() {
 
       console.log('Pratiche formattate finale:', formattedPratiche)
       setPratiche(formattedPratiche)
+      setIsLoading(false)
 
     } catch (error) {
       console.error('Errore completo:', error)
       toast.error("Errore nel caricamento delle pratiche")
+      setIsLoading(false)
       
       if (error instanceof Error && error.message.includes('Invalid login credentials')) {
         router.push('/login')
