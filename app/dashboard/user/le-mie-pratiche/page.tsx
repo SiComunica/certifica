@@ -102,7 +102,7 @@ export default function LeMiePratiche() {
         if (updateError) throw updateError
 
         toast.success('Ricevuta caricata con successo')
-        loadPratiche()
+        await loadPratiche()
       } catch (error) {
         console.error('Errore upload:', error)
         toast.error("Errore nel caricamento della ricevuta")
@@ -220,7 +220,7 @@ export default function LeMiePratiche() {
                   </Button>
                 )}
 
-                {pratica.status === 'pending_review' && !pratica.submitted_at && (
+                {pratica.status === 'pending_review' && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
                     className="w-full"
