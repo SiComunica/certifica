@@ -46,19 +46,16 @@ export default function LeMiePratiche() {
 
       const { data, error } = await supabase
         .from('practices')
-        .select(`
-          *,
-          documents,
-          contract_type
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
+      console.log('Pratiche caricate:', data)
+      
       if (error) throw error
-
       setPratiche(data || [])
     } catch (error) {
-      console.error('Errore:', error)
+      console.error('Errore caricamento:', error)
       toast.error("Errore nel caricamento delle pratiche")
     } finally {
       setLoading(false)
@@ -66,26 +63,40 @@ export default function LeMiePratiche() {
   }
 
   const handleUploadRicevuta = async (praticaId: string) => {
+    console.log('Inizio upload per pratica:', praticaId)
+    
     const fileInput = document.createElement('input')
     fileInput.type = 'file'
     fileInput.accept = '.pdf,.jpg,.jpeg,.png'
     
     fileInput.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
+      if (!file) {
+        console.log('Nessun file selezionato')
+        return
+      }
 
       try {
+        console.log('File selezionato:', file.name)
         toast.info('Caricamento in corso...')
         
-        // 1. Prima carichiamo il file
-        const fileName = `${praticaId}_${file.name}`
-        const { error: uploadError } = await supabase.storage
+        // Upload file
+        const fileName = `ricevute_${praticaId}_${file.name}`
+        console.log('Tentativo upload file:', fileName)
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('uploads')
           .upload(fileName, file)
 
-        if (uploadError) throw uploadError
+        if (uploadError) {
+          console.error('Errore upload:', uploadError)
+          throw uploadError
+        }
 
-        // 2. Poi aggiorniamo la pratica
+        console.log('File caricato con successo:', uploadData)
+
+        // Aggiorna pratica
+        console.log('Aggiornamento pratica...')
         const { error: updateError } = await supabase
           .from('practices')
           .update({ 
@@ -94,12 +105,16 @@ export default function LeMiePratiche() {
           })
           .eq('id', praticaId)
 
-        if (updateError) throw updateError
+        if (updateError) {
+          console.error('Errore aggiornamento:', updateError)
+          throw updateError
+        }
 
+        console.log('Pratica aggiornata con successo')
         toast.success('Ricevuta caricata con successo')
-        loadPratiche()
+        await loadPratiche()
       } catch (error) {
-        console.error('Errore upload:', error)
+        console.error('Errore completo:', error)
         toast.error("Errore nel caricamento della ricevuta")
       }
     }
@@ -109,6 +124,7 @@ export default function LeMiePratiche() {
 
   const handleInviaPratica = async (praticaId: string) => {
     try {
+      console.log('Invio pratica:', praticaId)
       const { error } = await supabase
         .from('practices')
         .update({ 
@@ -119,8 +135,8 @@ export default function LeMiePratiche() {
 
       if (error) throw error
 
-      toast.success('Pratica inviata con successo')
-      loadPratiche()
+      toast.success('Pratica inviata alla commissione')
+      await loadPratiche()
     } catch (error) {
       console.error('Errore invio:', error)
       toast.error("Errore nell'invio della pratica")
@@ -165,43 +181,33 @@ export default function LeMiePratiche() {
                   Pratica #{pratica.practice_number}
                 </h3>
                 <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
-                  {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
-                   pratica.status === 'pending_review' ? 'In revisione' : 
-                   pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
-                   pratica.status}
+                  {pratica.status}
                 </span>
               </div>
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <p>
                   <span className="font-medium">Dipendente:</span>{' '}
-                  {pratica.employee_name || 'Non specificato'}
-                </p>
-                <p>
-                  <span className="font-medium">Tipo contratto:</span>{' '}
-                  {pratica.contract_type || 'Non specificato'}
+                  {pratica.employee_name}
                 </p>
                 <p>
                   <span className="font-medium">Data creazione:</span>{' '}
                   {new Date(pratica.created_at).toLocaleDateString('it-IT')}
                 </p>
                 
-                <div className="mt-4">
-                  <span className="font-medium">Documenti:</span>
-                  <ul className="ml-4 mt-2">
-                    {pratica.documents && Object.entries(pratica.documents).map(([key, value]) => (
-                      <li key={key} className="text-blue-600 hover:underline">
-                        <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${value}`} 
-                           target="_blank" 
-                           rel="noopener noreferrer">
-                          {key === 'payment_receipt' ? 'Ricevuta di pagamento' : 
-                           key === '4' ? 'Istanza firmata' : 
-                           `Documento ${key}`}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {pratica.payment_receipt && (
+                  <p>
+                    <span className="font-medium">Ricevuta:</span>{' '}
+                    <a 
+                      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${pratica.payment_receipt}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Visualizza ricevuta
+                    </a>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
