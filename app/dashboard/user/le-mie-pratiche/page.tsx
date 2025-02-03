@@ -48,65 +48,51 @@ export default function LeMiePratiche() {
         return
       }
 
+      console.log('User ID:', user.id) // Debug
+
+      // Semplifichiamo la query
       const { data: practices, error } = await supabase
         .from('practices')
         .select(`
-          *,
-          contract_types (
-            name,
-            code
-          ),
-          employees (
-            full_name,
-            fiscal_code
-          ),
-          documents (
-            id,
-            file_name,
-            file_path
-          )
+          id,
+          pratica_number,
+          status,
+          created_at,
+          employee_name,
+          contract_type,
+          documents
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      console.log('Pratiche raw:', practices)
+      console.log('Query result:', { data: practices, error }) // Debug
 
-      if (error) throw error
+      if (error) {
+        console.error('Query error:', error)
+        throw error
+      }
 
-      // Usa Array.from invece di spread operator per Set
-      const uniqueStates = Array.from(new Set(practices?.map(p => p.status) || []))
-
-      console.log('Pratiche filtrate per stato:', {
-        totali: practices?.length || 0,
-        statiTrovati: uniqueStates
-      })
-
-      if (!practices || practices.length === 0) {
-        console.log('Nessuna pratica trovata')
+      if (!practices) {
+        console.log('No practices found')
         setPratiche([])
         return
       }
 
-      // Formatta dati con fallback
-      const formattedPratiche = practices?.map(pratica => ({
+      const formattedPratiche = practices.map(pratica => ({
         ...pratica,
-        contract_type_name: pratica.contract_types?.name || 'Non specificato',
-        employee_name: pratica.employees?.full_name || 'Non specificato',
-        documents: pratica.documents || []
+        contract_type_name: pratica.contract_type || 'Non specificato',
+        employee_name: pratica.employee_name || 'Non specificato',
+        documents: Array.isArray(pratica.documents) ? pratica.documents : []
       }))
 
-      console.log('Pratiche formattate:', formattedPratiche)
+      console.log('Formatted practices:', formattedPratiche) // Debug
       setPratiche(formattedPratiche)
-      setIsLoading(false)
 
     } catch (error) {
       console.error('Errore completo:', error)
       toast.error("Errore nel caricamento delle pratiche")
+    } finally {
       setIsLoading(false)
-      
-      if (error instanceof Error && error.message.includes('Invalid login credentials')) {
-        router.push('/login')
-      }
     }
   }
 
