@@ -517,7 +517,7 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                     <div className="bg-gray-50 rounded-lg p-4">
                       {practice?.documents?.istanza ? (
                         <div className="flex justify-between items-center">
-                          <span>Istanza firmata caricata</span>
+                          <span>Istanza firmata</span>
                           <a 
                             href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.documents.istanza}`}
                             target="_blank"
@@ -528,10 +528,8 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                           </a>
                         </div>
                       ) : (
-                        <div className="text-center">
-                          <Button onClick={handleUploadIstanza}>
-                            Carica Istanza Firmata
-                          </Button>
+                        <div className="text-gray-500">
+                          Nessuna istanza firmata presente
                         </div>
                       )}
                     </div>
@@ -539,7 +537,7 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                     <div className="bg-gray-50 rounded-lg p-4">
                       {practice?.payment_receipt ? (
                         <div className="flex justify-between items-center">
-                          <span>Ricevuta di pagamento caricata</span>
+                          <span>Ricevuta di pagamento</span>
                           <a 
                             href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`}
                             target="_blank"
@@ -559,18 +557,18 @@ export default function PraticaDettaglioPage({ params }: PageProps) {
                         </div>
                       )}
                     </div>
-
-                    {practice?.status === 'payment_verified' && (
-                      <div className="mt-4">
-                        <Button 
-                          onClick={handleInviaPratica}
-                          className="w-full bg-green-600 hover:bg-green-700"
-                        >
-                          Invia alla Commissione
-                        </Button>
-                      </div>
-                    )}
                   </div>
+
+                  {practice?.status === 'payment_verified' && (
+                    <div className="mt-4">
+                      <Button 
+                        onClick={handleInviaPratica}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Invia alla Commissione
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
