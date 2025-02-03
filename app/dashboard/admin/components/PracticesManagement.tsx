@@ -161,6 +161,10 @@ export default function PracticesManagement() {
 
   const handleAssignPractice = async (practiceId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Utente non autenticato')
+
+      // Verifica che la pratica non sia già assegnata
       const { data: practiceDetails, error: practiceError } = await supabase
         .from('practices')
         .select('*')
@@ -173,9 +177,8 @@ export default function PracticesManagement() {
         return
       }
 
-      // Verifica che la pratica non sia già assegnata
       if (practiceDetails.assigned_to) {
-        toast.error("Questa pratica è già stata assegnata")
+        toast.error("Questa pratica è già stata assegnata ad un altro membro della commissione")
         return
       }
 
@@ -183,11 +186,12 @@ export default function PracticesManagement() {
       const { error: updateError } = await supabase
         .from('practices')
         .update({ 
-          assigned_to: currentUser.id,
-          status: 'in_progress',
+          assigned_to: user.id,
+          status: 'in_review',
           updated_at: new Date().toISOString()
         })
         .eq('id', practiceId)
+        .is('assigned_to', null)
 
       if (updateError) throw updateError
 
@@ -196,14 +200,14 @@ export default function PracticesManagement() {
         .from('notifications')
         .insert({
           user_id: practiceDetails.user_id,
-          title: "Pratica in lavorazione",
-          message: `La pratica "${practiceDetails.title}" è stata presa in carico`,
+          title: "Pratica in revisione",
+          message: `La pratica "${practiceDetails.title}" è stata presa in carico dalla commissione`,
           type: "practice_assigned",
           practice_id: practiceId
         })
 
       toast.success("Pratica presa in carico con successo")
-      await loadPractices() // Ricarica le pratiche
+      await loadPractices()
 
     } catch (error: any) {
       console.error('Errore:', error)
