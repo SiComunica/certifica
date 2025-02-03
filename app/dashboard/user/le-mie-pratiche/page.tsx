@@ -31,6 +31,7 @@ interface Pratica {
   documents: Document[]
   contract_type_name?: string
   employee_name?: string
+  contract_type?: string
 }
 
 export default function LeMiePratiche() {
@@ -45,7 +46,11 @@ export default function LeMiePratiche() {
 
       const { data, error } = await supabase
         .from('practices')
-        .select('*')
+        .select(`
+          *,
+          documents,
+          contract_type
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -61,6 +66,12 @@ export default function LeMiePratiche() {
   }
 
   const handleUploadRicevuta = async (praticaId: string) => {
+    const pratica = pratiche.find(p => p.id === praticaId)
+    if (!pratica) {
+      toast.error("Pratica non trovata")
+      return
+    }
+
     const fileInput = document.createElement('input')
     fileInput.type = 'file'
     fileInput.accept = '.pdf,.jpg,.jpeg,.png'
@@ -70,8 +81,10 @@ export default function LeMiePratiche() {
       if (!file) return
 
       try {
+        toast.info('Caricamento in corso...')
+        
         const fileName = `ricevute/${praticaId}/${file.name}`
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('documents')
           .upload(fileName, file)
 
@@ -81,7 +94,8 @@ export default function LeMiePratiche() {
           .from('practices')
           .update({ 
             status: 'pending_review',
-            payment_receipt: fileName
+            payment_receipt: fileName,
+            documents: { ...pratica.documents, payment_receipt: fileName }
           })
           .eq('id', praticaId)
 
@@ -169,9 +183,30 @@ export default function LeMiePratiche() {
                   {pratica.employee_name || 'Non specificato'}
                 </p>
                 <p>
+                  <span className="font-medium">Tipo contratto:</span>{' '}
+                  {pratica.contract_type || 'Non specificato'}
+                </p>
+                <p>
                   <span className="font-medium">Data creazione:</span>{' '}
                   {new Date(pratica.created_at).toLocaleDateString('it-IT')}
                 </p>
+                
+                <div className="mt-4">
+                  <span className="font-medium">Documenti:</span>
+                  <ul className="ml-4 mt-2">
+                    {pratica.documents && Object.entries(pratica.documents).map(([key, value]) => (
+                      <li key={key} className="text-blue-600 hover:underline">
+                        <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${value}`} 
+                           target="_blank" 
+                           rel="noopener noreferrer">
+                          {key === 'payment_receipt' ? 'Ricevuta di pagamento' : 
+                           key === '4' ? 'Istanza firmata' : 
+                           `Documento ${key}`}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -185,7 +220,7 @@ export default function LeMiePratiche() {
                   </Button>
                 )}
 
-                {pratica.status === 'pending_review' && (
+                {pratica.status === 'pending_review' && !pratica.submitted_at && (
                   <Button 
                     onClick={() => handleInviaPratica(pratica.id)}
                     className="w-full"
