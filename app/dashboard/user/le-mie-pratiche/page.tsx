@@ -252,30 +252,39 @@ export default function LeMiePratiche() {
       </div>
       
       {isLoading ? (
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : pratiche.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-600">Non hai ancora pratiche in corso</p>
+        <div className="text-center py-8">
+          <p className="text-gray-600">Nessuna pratica trovata</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {pratiche.map((pratica) => (
             <div 
-              key={pratica.id} 
-              className="bg-white shadow-lg rounded-lg p-6 mb-4"
+              key={pratica.id}
+              className="bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-shadow"
             >
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Pratica #{pratica.pratica_number}
-                </h2>
-                <div className="mt-2 space-y-1 text-sm text-gray-600">
-                  <p>Dipendente: {pratica.employee_name}</p>
-                  <p>Contratto: {pratica.contract_type_name}</p>
-                  <p>Stato: {pratica.status}</p>
-                  <p>Data creazione: {new Date(pratica.created_at).toLocaleString('it-IT')}</p>
-                </div>
+              <h3 className="text-lg font-semibold mb-2">
+                Pratica #{pratica.pratica_number}
+              </h3>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>
+                  <span className="font-medium">Tipo:</span>{' '}
+                  {pratica.contract_type_name}
+                </p>
+                <p>
+                  <span className="font-medium">Stato:</span>{' '}
+                  {pratica.status === 'pending_payment' ? 'In attesa di pagamento' : 
+                   pratica.status === 'pending_review' ? 'In revisione' : 
+                   pratica.status === 'submitted_to_commission' ? 'Inviata alla commissione' : 
+                   pratica.status}
+                </p>
+                <p>
+                  <span className="font-medium">Data:</span>{' '}
+                  {new Date(pratica.created_at).toLocaleDateString('it-IT')}
+                </p>
               </div>
             </div>
           ))}
