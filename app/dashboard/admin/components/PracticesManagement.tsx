@@ -142,6 +142,10 @@ export default function PracticesManagement() {
           created_at,
           practice_number,
           documents,
+          employee_name,
+          employee_fiscal_code,
+          contract_type,
+          hiring_date,
           assigned_profile:profiles!practices_assigned_to_fkey (
             id,
             username,
@@ -162,13 +166,9 @@ export default function PracticesManagement() {
               role,
               user_id
             )
-          ),
-          employee_name,
-          employee_fiscal_code,
-          contract_type,
-          hiring_date
+          )
         `)
-        .in('status', ['submitted_to_commission', 'in_progress'])
+        .in('status', ['submitted_to_commission'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
