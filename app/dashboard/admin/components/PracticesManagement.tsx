@@ -187,7 +187,7 @@ export default function PracticesManagement() {
         .from('practices')
         .update({ 
           assigned_to: user.id,
-          status: 'in_review',
+          status: 'in_progress',
           updated_at: new Date().toISOString()
         })
         .eq('id', practiceId)
@@ -200,7 +200,7 @@ export default function PracticesManagement() {
         .from('notifications')
         .insert({
           user_id: practiceDetails.user_id,
-          title: "Pratica in revisione",
+          title: "Pratica in lavorazione",
           message: `La pratica "${practiceDetails.title}" è stata presa in carico dalla commissione`,
           type: "practice_assigned",
           practice_id: practiceId
