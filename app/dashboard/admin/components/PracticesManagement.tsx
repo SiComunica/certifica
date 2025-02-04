@@ -40,8 +40,20 @@ interface Practice {
   practice_number?: string
   assigned_profile: Profile | null
   practice_comments: PracticeComment[]
+  employee_name: string
+  employee_fiscal_code: string
+  contract_type: string
+  hiring_date: string
   documents: {
     receipt?: {
+      url: string
+      path: string
+    }
+    signed_application?: {
+      url: string
+      path: string
+    }
+    contract?: {
       url: string
       path: string
     }
@@ -64,6 +76,10 @@ interface DatabasePractice {
   practice_number?: string
   documents: any
   assigned_profile: Profile | null
+  employee_name: string
+  employee_fiscal_code: string
+  contract_type: string
+  hiring_date: string
   practice_comments: Array<{
     id: string
     content: string
@@ -100,7 +116,11 @@ export default function PracticesManagement() {
         ...comment,
         practice_id: practice.id,
         profile: comment.profile
-      }))
+      })),
+      employee_name: practice.employee_name,
+      employee_fiscal_code: practice.employee_fiscal_code,
+      contract_type: practice.contract_type,
+      hiring_date: practice.hiring_date
     }
   }
 
@@ -142,7 +162,11 @@ export default function PracticesManagement() {
               role,
               user_id
             )
-          )
+          ),
+          employee_name,
+          employee_fiscal_code,
+          contract_type,
+          hiring_date
         `)
         .in('status', ['submitted_to_commission', 'in_progress'])
         .order('created_at', { ascending: false })
@@ -261,19 +285,70 @@ export default function PracticesManagement() {
             <div className="space-y-4">
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
-                  <h3 className="font-medium">
-                    Stato: {
-                      practice.status === 'submitted_to_commission' 
-                        ? 'In attesa di assegnazione' 
-                        : 'In lavorazione'
-                    }
-                  </h3>
-                  <p className="text-sm text-gray-500">{practice.description}</p>
+                  <h3 className="font-medium">Dettagli Pratica</h3>
                   
-                  {/* Sezione Documenti */}
+                  {/* Dati Dipendente */}
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Nome Dipendente</p>
+                      <p className="text-sm">{practice.employee_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Codice Fiscale</p>
+                      <p className="text-sm">{practice.employee_fiscal_code}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Tipo Contratto</p>
+                      <p className="text-sm">{practice.contract_type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Data Assunzione</p>
+                      <p className="text-sm">{new Date(practice.hiring_date).toLocaleDateString('it-IT')}</p>
+                    </div>
+                  </div>
+
+                  {/* Stato Pratica */}
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-500">Stato Pratica</h4>
+                    <p className={`text-sm ${
+                      practice.status === 'submitted_to_commission' ? 'text-orange-600' : 'text-gray-900'
+                    }`}>
+                      {practice.status === 'submitted_to_commission' ? 'In attesa di assegnazione' : 'In lavorazione'}
+                    </p>
+                  </div>
+
+                  {/* Documenti Allegati */}
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Documenti allegati:</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      {/* Istanza Firmata */}
+                      {practice.documents?.signed_application && (
+                        <div className="flex items-center gap-2">
+                          <svg 
+                            className="w-5 h-5 text-blue-600" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                            />
+                          </svg>
+                          <a 
+                            href={practice.documents.signed_application.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Istanza Firmata
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Ricevuta di Pagamento */}
                       {practice.documents?.receipt && (
                         <div className="flex items-center gap-2">
                           <svg 
@@ -295,11 +370,39 @@ export default function PracticesManagement() {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
                           >
-                            Ricevuta di pagamento
+                            Ricevuta di Pagamento
                           </a>
                         </div>
                       )}
 
+                      {/* Contratto */}
+                      {practice.documents?.contract && (
+                        <div className="flex items-center gap-2">
+                          <svg 
+                            className="w-5 h-5 text-blue-600" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                            />
+                          </svg>
+                          <a 
+                            href={practice.documents.contract.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Contratto di Lavoro
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Altri Documenti */}
                       {practice.documents?.attachments?.map((doc, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <svg 
@@ -321,12 +424,15 @@ export default function PracticesManagement() {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
                           >
-                            Documento allegato {index + 1}
+                            Documento Allegato {index + 1}
                           </a>
                         </div>
                       ))}
 
-                      {(!practice.documents?.receipt && !practice.documents?.attachments?.length) && (
+                      {(!practice.documents?.receipt && 
+                        !practice.documents?.signed_application && 
+                        !practice.documents?.contract && 
+                        !practice.documents?.attachments?.length) && (
                         <p className="text-sm text-gray-500 italic">
                           Nessun documento allegato
                         </p>
@@ -336,7 +442,7 @@ export default function PracticesManagement() {
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  Creata il: {new Date(practice.created_at).toLocaleDateString()}
+                  Creata il: {new Date(practice.created_at).toLocaleDateString('it-IT')}
                 </div>
               </div>
 
