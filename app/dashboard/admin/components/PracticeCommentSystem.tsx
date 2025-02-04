@@ -14,6 +14,8 @@ import {
 import { toast } from "sonner"
 import { MessageSquare, Send } from "lucide-react"
 
+type CommentType = 'request_documents' | 'request_clarification' | 'status_update' | 'approval' | 'rejection' | 'request_hearing'
+
 interface PracticeCommentSystemProps {
   practiceId: string
   userId: string // ID dell'utente che ha inviato la pratica
@@ -21,83 +23,57 @@ interface PracticeCommentSystemProps {
 }
 
 export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: PracticeCommentSystemProps) {
-  const [commentType, setCommentType] = useState("")
-  const [comment, setComment] = useState("")
+  const [content, setContent] = useState('')
+  const [type, setType] = useState<CommentType>('request_documents')
   const supabase = createClientComponentClient()
 
-  const commentTemplates = {
-    request_documents: {
-      title: "Richiesta Documenti",
-      template: "Si richiede di fornire la seguente documentazione aggiuntiva:"
-    },
-    clarification: {
-      title: "Richiesta Chiarimenti",
-      template: "Sono necessari chiarimenti sui seguenti punti:"
-    },
-    update: {
-      title: "Aggiornamento Stato",
-      template: "La pratica è stata aggiornata:"
-    },
-    approval: {
-      title: "Approvazione",
-      template: "La pratica è stata approvata con le seguenti note:"
-    },
-    rejection: {
-      title: "Rifiuto",
-      template: "La pratica non può essere approvata per i seguenti motivi:"
-    }
-  }
-
-  const handleCommentSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Non autorizzato")
+      if (!user) throw new Error('Non autorizzato')
 
-      // 1. Salva il commento
+      // Creiamo il commento
       const { error: commentError } = await supabase
         .from('practice_comments')
         .insert({
           practice_id: practiceId,
           user_id: user.id,
-          content: comment,
-          type: commentType
+          content,
+          type // Aggiungiamo il tipo del commento
         })
 
       if (commentError) throw commentError
 
-      // 2. Crea una notifica per l'utente
+      // Creiamo la notifica per l'utente
+      const notificationTitle = {
+        'request_documents': 'Richiesta Documenti',
+        'request_clarification': 'Richiesta Chiarimenti',
+        'status_update': 'Aggiornamento Stato',
+        'approval': 'Pratica Approvata',
+        'rejection': 'Pratica Rifiutata',
+        'request_hearing': 'Richiesta Audizione'
+      }[type]
+
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
-          user_id: userId,
-          title: `Nuovo commento sulla pratica: ${practiceTitle}`,
-          message: comment,
-          type: commentType,
+          user_id: userId, // ID dell'utente che ha creato la pratica
+          title: notificationTitle,
+          message: `${notificationTitle} per la pratica "${practiceTitle}": ${content}`,
+          type: 'practice_comment',
           practice_id: practiceId
         })
 
       if (notificationError) throw notificationError
 
-      // 3. Invia email all'utente
-      const { error: emailError } = await supabase
-        .functions.invoke('send-practice-notification', {
-          body: {
-            userId,
-            practiceId,
-            commentType,
-            comment,
-            practiceTitle
-          }
-        })
+      toast.success('Messaggio inviato con successo')
+      setContent('')
 
-      if (emailError) throw emailError
-
-      toast.success("Commento inviato con successo")
-      setComment("")
-      setCommentType("")
-    } catch (error) {
-      toast.error("Errore nell'invio del commento")
-      console.error(error)
+    } catch (error: any) {
+      console.error('Errore:', error)
+      toast.error(`Errore nell'invio del messaggio: ${error.message}`)
     }
   }
 
@@ -109,35 +85,35 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       </h3>
 
       <Select
-        value={commentType}
-        onValueChange={(value) => {
-          setCommentType(value)
-          setComment(commentTemplates[value as keyof typeof commentTemplates].template)
-        }}
+        value={type}
+        onValueChange={(value) => setType(value as CommentType)}
       >
         <SelectTrigger>
-          <SelectValue placeholder="Seleziona tipo di comunicazione" />
+          <SelectValue placeholder="Seleziona tipo messaggio" />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(commentTemplates).map(([key, { title }]) => (
-            <SelectItem key={key} value={key}>
-              {title}
-            </SelectItem>
-          ))}
+          <SelectItem value="request_documents">Richiesta Documenti</SelectItem>
+          <SelectItem value="request_clarification">Richiesta Chiarimenti</SelectItem>
+          <SelectItem value="status_update">Aggiornamento Stato</SelectItem>
+          <SelectItem value="approval">Approvazione</SelectItem>
+          <SelectItem value="rejection">Rifiuto</SelectItem>
+          <SelectItem value="request_hearing">Richiesta Audizione</SelectItem>
         </SelectContent>
       </Select>
 
       <Textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Scrivi il tuo messaggio..."
-        className="min-h-[120px]"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder={type === 'request_hearing' ? 
+          "Inserisci data, ora e link alla piattaforma di video call per l'audizione..." : 
+          "Scrivi un messaggio..."}
+        className="min-h-[100px]"
       />
 
       <Button 
-        onClick={handleCommentSubmit}
+        onClick={handleSubmit}
         className="w-full"
-        disabled={!comment.trim() || !commentType}
+        disabled={!content.trim() || !type}
       >
         <Send className="h-4 w-4 mr-2" />
         Invia comunicazione
