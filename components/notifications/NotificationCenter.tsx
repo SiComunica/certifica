@@ -16,21 +16,32 @@ import { supabase } from "@/lib/supabase"
 
 interface Notification {
   id: string
+  user_id: string
   title: string
   message: string
   read: boolean
   created_at: string
+  practice_id: string
+  type: string
 }
 
 export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
-    // Carica notifiche iniziali
-    loadNotifications()
+    // Ottieni l'utente corrente
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+      if (user) {
+        loadNotifications(user.id)
+      }
+    }
+    getCurrentUser()
 
-    // Sottoscrivi ai cambiamenti real-time
+    // Sottoscrivi ai cambiamenti real-time per l'utente specifico
     const channel = supabase
       .channel('notifications')
       .on(
@@ -38,7 +49,8 @@ export function NotificationCenter() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'notifications'
+          table: 'notifications',
+          filter: `user_id=eq.${currentUser?.id}` // Filtra per utente corrente
         },
         (payload) => {
           setNotifications(prev => [payload.new as Notification, ...prev])
@@ -52,10 +64,11 @@ export function NotificationCenter() {
     }
   }, [])
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (userId: string) => {
     const { data } = await supabase
       .from('notifications')
       .select('*')
+      .eq('user_id', userId) // Filtra per utente corrente
       .order('created_at', { ascending: false })
       .limit(50)
 
