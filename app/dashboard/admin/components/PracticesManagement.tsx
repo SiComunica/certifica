@@ -340,8 +340,8 @@ export default function PracticesManagement() {
                 </div>
               </div>
 
-              {/* Sistema commenti sempre visibile per le pratiche in lavorazione */}
-              {practice.status === 'in_progress' && (
+              {/* Sistema commenti sempre visibile per le pratiche assegnate */}
+              {practice.assigned_to && (
                 <>
                   {/* Commenti esistenti */}
                   {practice.practice_comments.length > 0 && (
@@ -366,7 +366,7 @@ export default function PracticesManagement() {
                     </div>
                   )}
 
-                  {/* Sistema commenti per tutti quando la pratica è in lavorazione */}
+                  {/* Sistema commenti per pratiche assegnate */}
                   <PracticeCommentSystem
                     practiceId={practice.id}
                     userId={practice.user_id}
