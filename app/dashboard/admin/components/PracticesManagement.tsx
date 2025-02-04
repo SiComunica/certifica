@@ -43,7 +43,9 @@ interface Practice {
   employee_name: string
   employee_fiscal_code: string
   contract_type: string
-  hiring_date: string
+  submission_date: string
+  payment_status: string
+  payment_date: string
   documents: {
     receipt?: {
       url: string
@@ -79,7 +81,9 @@ interface DatabasePractice {
   employee_name: string
   employee_fiscal_code: string
   contract_type: string
-  hiring_date: string
+  submission_date: string
+  payment_status: string
+  payment_date: string
   practice_comments: Array<{
     id: string
     content: string
@@ -120,7 +124,9 @@ export default function PracticesManagement() {
       employee_name: practice.employee_name,
       employee_fiscal_code: practice.employee_fiscal_code,
       contract_type: practice.contract_type,
-      hiring_date: practice.hiring_date
+      submission_date: practice.submission_date,
+      payment_status: practice.payment_status,
+      payment_date: practice.payment_date
     }
   }
 
@@ -147,7 +153,9 @@ export default function PracticesManagement() {
           employee_name,
           employee_fiscal_code,
           contract_type,
-          hiring_date,
+          submission_date,
+          payment_status,
+          payment_date,
           assigned_profile:profiles!practices_assigned_to_fkey (
             id,
             username,
@@ -319,7 +327,7 @@ export default function PracticesManagement() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500">Data Assunzione</p>
-                        <p className="text-sm">{new Date(practice.hiring_date).toLocaleDateString('it-IT')}</p>
+                        <p className="text-sm">{new Date(practice.submission_date).toLocaleDateString('it-IT')}</p>
                       </div>
                     </div>
 
