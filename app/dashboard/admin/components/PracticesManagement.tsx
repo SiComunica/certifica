@@ -63,6 +63,7 @@ interface Practice {
       url: string
       path: string
     }[]
+    contract_name?: string
   } | null
 }
 
@@ -76,7 +77,7 @@ interface DatabasePractice {
   assigned_to: string | null
   created_at: string
   practice_number?: string
-  documents: any
+  documents: Record<string, string> | null
   assigned_profile: Profile | null
   employee_name: string
   employee_fiscal_code: string
@@ -84,6 +85,7 @@ interface DatabasePractice {
   submission_date: string
   payment_status: string
   payment_date: string
+  payment_receipt: string | null
   practice_comments: Array<{
     id: string
     content: string
@@ -138,6 +140,18 @@ export default function PracticesManagement() {
       
       console.log("Caricamento pratiche...");
 
+      // Prima prendiamo i templates per i contratti
+      const { data: templates, error: templatesError } = await supabase
+        .from('templates')
+        .select('id, name')
+      
+      if (templatesError) throw templatesError
+
+      const templatesMap = templates.reduce((acc, template) => {
+        acc[template.id] = template.name
+        return acc
+      }, {} as Record<string, string>)
+
       const { data, error } = await supabase
         .from('practices')
         .select(`
@@ -156,6 +170,7 @@ export default function PracticesManagement() {
           submission_date,
           payment_status,
           payment_date,
+          payment_receipt,
           assigned_profile:profiles!practices_assigned_to_fkey (
             id,
             username,
@@ -183,12 +198,31 @@ export default function PracticesManagement() {
 
       if (error) throw error
 
-      console.log("Dati ricevuti:", data);
-      console.log("Numero pratiche:", data?.length || 0);
+      // Creiamo gli URL per i documenti
+      const formattedPractices = (data as unknown as DatabasePractice[]).map(practice => {
+        const formattedPractice = formatPractice(practice)
+        
+        // Aggiungiamo gli URL dei documenti
+        const docs = practice.documents as Record<string, string> || {}
+        formattedPractice.documents = {
+          // Istanza firmata (il valore in docs[4])
+          signed_application: docs["4"] ? {
+            url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads${docs["4"]}`,
+            path: docs["4"]
+          } : undefined,
+          // Ricevuta di pagamento dal campo payment_receipt
+          receipt: practice.payment_receipt ? {
+            url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/${practice.payment_receipt}`,
+            path: practice.payment_receipt
+          } : undefined,
+          // Nome del contratto dalla tabella templates
+          contract_name: templatesMap[practice.contract_type] || `Contratto ID: ${practice.contract_type}`
+        }
+        
+        return formattedPractice
+      })
 
-      const formattedPractices = (data as unknown as DatabasePractice[]).map(formatPractice)
       console.log("Pratiche formattate:", formattedPractices);
-      
       setPractices(formattedPractices)
       
     } catch (error: any) {
