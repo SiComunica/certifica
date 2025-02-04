@@ -9,7 +9,7 @@ import { User, Clock } from "lucide-react"
 import { PracticeCommentSystem } from "./PracticeCommentSystem"
 
 // Definiamo gli stati validi come sono nel database
-type PracticeStatus = 'pending' | 'in_progress' | 'completed' | 'rejected' | 'needs_info' | 'submitted_to_commission'
+type PracticeStatus = 'draft' | 'pending_payment' | 'payment_verified' | 'submitted_to_commission'
 
 interface Profile {
   id: string
@@ -80,16 +80,14 @@ export default function PracticesManagement() {
 
   const validateStatus = (status: string): PracticeStatus => {
     const validStatuses: PracticeStatus[] = [
-      'pending', 
-      'in_progress', 
-      'completed', 
-      'rejected', 
-      'needs_info',
+      'draft', 
+      'pending_payment', 
+      'payment_verified',
       'submitted_to_commission'
     ]
     return validStatuses.includes(status as PracticeStatus) 
       ? (status as PracticeStatus) 
-      : 'pending'
+      : 'submitted_to_commission'
   }
 
   const formatPractice = (practice: DatabasePractice): Practice => {
@@ -188,7 +186,6 @@ export default function PracticesManagement() {
         .from('practices')
         .update({ 
           assigned_to: user.id,
-          status: 'in_progress' as PracticeStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', practiceId)
@@ -230,7 +227,7 @@ export default function PracticesManagement() {
                 <span className="text-sm text-gray-500">{practice.title}</span>
               </div>
               <div className="text-sm font-normal">
-                {practice.status === 'in_progress' ? (
+                {practice.assigned_to ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <User className="h-4 w-4" />
                     <span>
