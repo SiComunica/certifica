@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { User, Clock } from "lucide-react"
 import { PracticeCommentSystem } from "./PracticeCommentSystem"
 
+// Definiamo gli stati validi come sono nel database
 type PracticeStatus = 'pending' | 'in_progress' | 'completed' | 'rejected' | 'needs_info' | 'submitted_to_commission'
 
 interface Profile {
@@ -187,11 +188,10 @@ export default function PracticesManagement() {
         .from('practices')
         .update({ 
           assigned_to: user.id,
-          status: 'in_progress',
+          status: 'in_progress' as PracticeStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', practiceId)
-        .is('assigned_to', null)
 
       if (updateError) throw updateError
 
