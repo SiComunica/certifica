@@ -22,6 +22,17 @@ interface PracticeCommentSystemProps {
   practiceTitle: string
 }
 
+interface Notification {
+  id?: string
+  user_id: string
+  message: string
+  title: string
+  type: string
+  read?: boolean
+  created_at?: string
+  practice_id: string
+}
+
 export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: PracticeCommentSystemProps) {
   const [content, setContent] = useState('')
   const [type, setType] = useState<CommentType>('request_documents')
@@ -41,7 +52,7 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
           practice_id: practiceId,
           user_id: user.id,
           content,
-          type // Aggiungiamo il tipo del commento
+          type
         })
 
       if (commentError) throw commentError
@@ -59,11 +70,12 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
-          user_id: userId, // ID dell'utente che ha creato la pratica
+          user_id: userId,
           title: notificationTitle,
           message: `${notificationTitle} per la pratica "${practiceTitle}": ${content}`,
           type: 'practice_comment',
-          practice_id: practiceId
+          practice_id: practiceId,
+          read: false
         })
 
       if (notificationError) throw notificationError
