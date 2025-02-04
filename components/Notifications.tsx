@@ -6,6 +6,8 @@ import { Bell, X } from 'lucide-react'
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 
+type NotificationType = 'practice_created' | 'practice_comment' | 'status_update' | 'request_documents' | 'request_clarification' | 'approval' | 'rejection' | 'request_hearing'
+
 interface Notification {
   id: string
   user_id: string
@@ -13,8 +15,8 @@ interface Notification {
   message: string
   created_at: string
   read: boolean
-  practice_id: string
-  type: string
+  practice_id: string | null
+  type: NotificationType
 }
 
 export default function Notifications() {
@@ -23,27 +25,36 @@ export default function Notifications() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    loadNotifications()
+    const loadAndSubscribe = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      loadNotifications()
 
-    // Sottoscrizione real-time per nuove notifiche
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications'
-        },
-        (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev])
-        }
-      )
-      .subscribe()
+      // Sottoscrizione real-time per nuove notifiche SOLO dell'utente corrente
+      const channel = supabase
+        .channel('notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}` // Aggiungiamo questo filtro
+          },
+          (payload) => {
+            console.log('Nuova notifica ricevuta:', payload) // Debug
+            setNotifications(prev => [payload.new as Notification, ...prev])
+          }
+        )
+        .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
+
+    loadAndSubscribe()
   }, [])
 
   const loadNotifications = async () => {
@@ -58,8 +69,10 @@ export default function Notifications() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
+      console.log('Notifiche caricate:', data) // Debug
       if (data) setNotifications(data)
     } catch (error: any) {
+      console.error('Errore nel caricamento:', error) // Debug
       toast.error(`Errore nel caricamento delle notifiche: ${error.message}`)
     }
   }
@@ -116,6 +129,24 @@ export default function Notifications() {
     return d.toLocaleDateString('it-IT')
   }
 
+  const getNotificationStyle = (type: NotificationType) => {
+    switch(type) {
+      case 'practice_created':
+        return 'bg-green-50'
+      case 'practice_comment':
+        return 'bg-blue-50'
+      case 'request_documents':
+      case 'request_clarification':
+        return 'bg-yellow-50'
+      case 'approval':
+        return 'bg-green-50'
+      case 'rejection':
+        return 'bg-red-50'
+      default:
+        return 'bg-gray-50'
+    }
+  }
+
   return (
     <div className="relative">
       <button 
@@ -162,7 +193,7 @@ export default function Notifications() {
                   <div 
                     key={notification.id}
                     className={`p-4 border-b last:border-b-0 hover:bg-gray-50 ${
-                      notification.read ? 'bg-white' : 'bg-blue-50'
+                      notification.read ? 'bg-white' : getNotificationStyle(notification.type)
                     }`}
                   >
                     <div className="flex justify-between items-start">
@@ -172,6 +203,11 @@ export default function Notifications() {
                         <p className="text-xs text-gray-400 mt-1">
                           {formatDate(notification.created_at)}
                         </p>
+                        {notification.practice_id && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Pratica: {notification.practice_id}
+                          </p>
+                        )}
                       </div>
                       {!notification.read && (
                         <button 

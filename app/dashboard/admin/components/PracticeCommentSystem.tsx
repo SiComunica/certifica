@@ -45,6 +45,23 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Non autorizzato')
 
+      // Definiamo il titolo della notifica prima di usarlo
+      const notificationTitle = {
+        'request_documents': 'Richiesta Documenti',
+        'request_clarification': 'Richiesta Chiarimenti',
+        'status_update': 'Aggiornamento Stato',
+        'approval': 'Pratica Approvata',
+        'rejection': 'Pratica Rifiutata',
+        'request_hearing': 'Richiesta Audizione'
+      }[type]
+
+      console.log('Invio notifica:', {
+        user_id: userId,
+        practice_id: practiceId,
+        type,
+        title: notificationTitle
+      })
+
       // Creiamo il commento
       const { error: commentError } = await supabase
         .from('practice_comments')
@@ -58,15 +75,6 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       if (commentError) throw commentError
 
       // Creiamo la notifica per l'utente
-      const notificationTitle = {
-        'request_documents': 'Richiesta Documenti',
-        'request_clarification': 'Richiesta Chiarimenti',
-        'status_update': 'Aggiornamento Stato',
-        'approval': 'Pratica Approvata',
-        'rejection': 'Pratica Rifiutata',
-        'request_hearing': 'Richiesta Audizione'
-      }[type]
-
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
@@ -78,13 +86,16 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
           read: false
         })
 
-      if (notificationError) throw notificationError
+      if (notificationError) {
+        console.error('Errore notifica:', notificationError)
+        throw notificationError
+      }
 
       toast.success('Messaggio inviato con successo')
       setContent('')
 
     } catch (error: any) {
-      console.error('Errore:', error)
+      console.error('Errore completo:', error)
       toast.error(`Errore nell'invio del messaggio: ${error.message}`)
     }
   }
