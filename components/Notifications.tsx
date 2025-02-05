@@ -22,79 +22,81 @@ interface Notification {
 export default function Notifications() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const supabase = createClientComponentClient()
 
+  // Carica le notifiche quando il componente viene montato
   useEffect(() => {
-    const setupNotifications = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          console.error('A. Utente non autenticato')
-          return
-        }
-
-        console.log('B. Setting up notifications for user:', user.id)
-
-        // Carica notifiche iniziali
-        await loadNotifications(user.id)
-
-        // Sottoscrizione real-time
-        const channel = supabase
-          .channel(`notifications-${user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'notifications',
-              filter: `user_id=eq.${user.id}`
-            },
-            (payload) => {
-              console.log('C. Notifica real-time ricevuta:', payload)
-              if (payload.eventType === 'INSERT') {
-                const newNotification = payload.new as Notification
-                setNotifications(prev => [newNotification, ...prev])
-                toast.success(`Nuova notifica: ${newNotification.title}`)
-              }
-            }
-          )
-          .subscribe((status) => {
-            console.log('D. Status subscription:', status)
-          })
-
-        return () => {
-          console.log('E. Cleaning up subscription')
-          supabase.removeChannel(channel)
-        }
-      } catch (error) {
-        console.error('F. Errore setup notifiche:', error)
-      }
-    }
-
-    setupNotifications()
+    console.log("1. Componente Notifications montato")
+    loadInitialNotifications()
   }, [])
 
-  const loadNotifications = async (userId: string) => {
+  // Funzione per caricare le notifiche iniziali
+  const loadInitialNotifications = async () => {
     try {
-      console.log('G. Loading notifications for user:', userId)
+      setIsLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        console.error('2. Utente non autenticato')
+        return
+      }
+
+      console.log('3. Caricamento notifiche per user:', user.id)
       
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('H. Errore query:', error)
+        console.error('4. Errore caricamento:', error)
         throw error
       }
 
-      console.log('I. Notifiche caricate:', data)
+      console.log('5. Notifiche caricate:', data)
       setNotifications(data || [])
-    } catch (error: any) {
-      console.error('J. Errore caricamento:', error)
-      toast.error(`Errore nel caricamento delle notifiche: ${error.message}`)
+
+      // Setup della subscription real-time
+      setupRealtimeSubscription(user.id)
+
+    } catch (error) {
+      console.error('6. Errore:', error)
+      toast.error('Errore nel caricamento delle notifiche')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Setup della subscription real-time
+  const setupRealtimeSubscription = (userId: string) => {
+    console.log('7. Setup subscription per user:', userId)
+    
+    const channel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('8. Nuova notifica ricevuta:', payload)
+          const newNotification = payload.new as Notification
+          setNotifications(prev => [newNotification, ...prev])
+          toast.success(`Nuova notifica: ${newNotification.title}`)
+        }
+      )
+      .subscribe((status) => {
+        console.log('9. Subscription status:', status)
+      })
+
+    return () => {
+      console.log('10. Pulizia subscription')
+      supabase.removeChannel(channel)
     }
   }
 
