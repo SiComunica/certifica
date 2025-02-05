@@ -6,6 +6,9 @@ export async function POST(request: Request) {
   try {
     const { email } = await request.json()
     const supabase = createRouteHandlerClient({ cookies })
+    
+    // Usa esplicitamente l'URL di produzione
+    const siteUrl = 'https://certifica-sjmx.vercel.app'
 
     // Verifica che chi fa la richiesta sia un admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
 
     // Invia l'email di invito usando Supabase Auth
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/commission-signup`,
+      redirectTo: `${siteUrl}/auth/commission-signup`,
       data: {
         role: 'admin',
         invite_id: invite.id
