@@ -1,11 +1,12 @@
 "use client"
 
+import { Suspense } from "react"
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 
-export default function CommissionSignUp() {
+function CommissionSignUpContent() {
   const [loading, setLoading] = useState(true)
   const [password, setPassword] = useState("")
   const router = useRouter()
@@ -113,5 +114,13 @@ export default function CommissionSignUp() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function CommissionSignUp() {
+  return (
+    <Suspense fallback={<div>Caricamento...</div>}>
+      <CommissionSignUpContent />
+    </Suspense>
   )
 } 
