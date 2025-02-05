@@ -93,8 +93,7 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       }
 
       console.log('Notifica creata:', notificationData)
-
-      toast.success('Messaggio inviato con successo')
+      toast.success('Notifica inviata con successo')
       setContent('')
 
     } catch (error: any) {
