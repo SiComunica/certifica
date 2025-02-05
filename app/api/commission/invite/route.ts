@@ -38,8 +38,9 @@ export async function POST(request: Request) {
 
     // Invia l'email di invito usando Supabase Auth
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/commission-signup`,
       data: {
-        role: 'member',
+        role: 'admin',
         invite_id: invite.id
       }
     })
