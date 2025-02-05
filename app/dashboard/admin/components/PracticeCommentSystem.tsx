@@ -43,9 +43,15 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
     
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Non autorizzato')
+      if (!user) {
+        console.error('Utente non autenticato')
+        throw new Error('Non autorizzato')
+      }
 
-      // Definiamo il titolo della notifica prima di usarlo
+      console.log('1. Admin user:', user.id)
+      console.log('2. Target user_id:', userId)
+      console.log('3. Practice ID:', practiceId)
+
       const notificationTitle = {
         'request_documents': 'Richiesta Documenti',
         'request_clarification': 'Richiesta Chiarimenti',
@@ -55,11 +61,13 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
         'request_hearing': 'Richiesta Audizione'
       }[type]
 
-      console.log('Invio notifica:', {
+      console.log('4. Creazione notifica con dati:', {
         user_id: userId,
+        title: notificationTitle,
+        message: `${notificationTitle} per la pratica "${practiceTitle}": ${content}`,
+        type: type,
         practice_id: practiceId,
-        type,
-        title: notificationTitle
+        read: false
       })
 
       // Creiamo il commento
@@ -88,16 +96,16 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
         .select()
 
       if (notificationError) {
-        console.error('Errore creazione notifica:', notificationError)
+        console.error('5. Errore creazione notifica:', notificationError)
         throw notificationError
       }
 
-      console.log('Notifica creata:', notificationData)
-      toast.success('Notifica inviata con successo')
+      console.log('6. Notifica creata con successo:', notificationData)
+      toast.success('Notifica inviata con successo!')
       setContent('')
 
     } catch (error: any) {
-      console.error('Errore completo:', error)
+      console.error('7. Errore completo:', error)
       toast.error(`Errore nell'invio del messaggio: ${error.message}`)
     }
   }
