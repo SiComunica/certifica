@@ -75,21 +75,24 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       if (commentError) throw commentError
 
       // Creiamo la notifica per l'utente
-      const { error: notificationError } = await supabase
+      const { data: notificationData, error: notificationError } = await supabase
         .from('notifications')
         .insert({
           user_id: userId,
           title: notificationTitle,
           message: `${notificationTitle} per la pratica "${practiceTitle}": ${content}`,
-          type: 'practice_comment',
+          type: type,
           practice_id: practiceId,
           read: false
         })
+        .select()
 
       if (notificationError) {
-        console.error('Errore notifica:', notificationError)
+        console.error('Errore creazione notifica:', notificationError)
         throw notificationError
       }
+
+      console.log('Notifica creata:', notificationData)
 
       toast.success('Messaggio inviato con successo')
       setContent('')

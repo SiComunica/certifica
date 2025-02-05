@@ -22,25 +22,31 @@ interface Notification {
 export default function Notifications() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    const loadAndSubscribe = async () => {
+    const setupNotifications = async () => {
+      // Ottieni l'utente corrente
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       
-      loadNotifications()
+      setCurrentUserId(user.id)
+      console.log('Current user ID:', user.id) // Debug
 
-      // Sottoscrizione real-time per nuove notifiche SOLO dell'utente corrente
+      // Carica notifiche esistenti
+      loadNotifications(user.id)
+
+      // Sottoscrizione real-time per nuove notifiche
       const channel = supabase
-        .channel('notifications')
+        .channel(`notifications-${user.id}`)
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
             table: 'notifications',
-            filter: `user_id=eq.${user.id}` // Aggiungiamo questo filtro
+            filter: `user_id=eq.${user.id}`
           },
           (payload) => {
             console.log('Nuova notifica ricevuta:', payload) // Debug
@@ -49,30 +55,34 @@ export default function Notifications() {
         )
         .subscribe()
 
+      console.log('Canale notifiche sottoscritto per user:', user.id) // Debug
+
       return () => {
         supabase.removeChannel(channel)
       }
     }
 
-    loadAndSubscribe()
+    setupNotifications()
   }, [])
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (userId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
+      console.log('Caricamento notifiche per user:', userId) // Debug
+      
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Errore caricamento notifiche:', error) // Debug
+        throw error
+      }
+
       console.log('Notifiche caricate:', data) // Debug
       if (data) setNotifications(data)
     } catch (error: any) {
-      console.error('Errore nel caricamento:', error) // Debug
       toast.error(`Errore nel caricamento delle notifiche: ${error.message}`)
     }
   }
