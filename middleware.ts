@@ -28,6 +28,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', req.url))
   }
 
+  // Se l'utente sta accedendo alla pagina di registrazione commissione
+  if (req.nextUrl.pathname === '/auth/commission-signup') {
+    if (!session) {
+      // Se non è autenticato, reindirizza alla pagina di login
+      return NextResponse.redirect(new URL('/auth/login', req.url))
+    }
+  }
+
   return res
 }
 
@@ -41,5 +49,6 @@ export const config = {
      * - public (public files)
      */
     '/((?!_next/static|_next/image|favicon.ico|public|images|api).*)',
+    '/auth/commission-signup'
   ],
 }
