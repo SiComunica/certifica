@@ -5,25 +5,14 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
-    const supabase = createRouteHandlerClient({ cookies })
+    console.log('Email ricevuta:', email)
     
-    // Usa esplicitamente l'URL di produzione
+    const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
     // Verifica che chi fa la richiesta sia un admin
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user?.id)
-      .single()
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Non autorizzato' },
-        { status: 401 }
-      )
-    }
+    console.log('User:', user)
 
     // Crea l'invito nel database
     const { data: invite, error: inviteError } = await supabase
@@ -37,9 +26,13 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (inviteError) throw inviteError
+    if (inviteError) {
+      console.error('Errore creazione invito:', inviteError)
+      throw inviteError
+    }
+    console.log('Invito creato:', invite)
 
-    // Usa signInWithOtp invece di inviteUserByEmail
+    // Invia l'email
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -51,12 +44,16 @@ export async function POST(request: Request) {
       }
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Errore invio OTP:', error)
+      throw error
+    }
+    console.log('OTP inviato con successo:', data)
 
     return NextResponse.json({ success: true, data })
 
   } catch (error) {
-    console.error('Errore invito:', error)
+    console.error('Errore completo:', error)
     return NextResponse.json(
       { error: 'Errore durante l\'invio dell\'invito' },
       { status: 500 }

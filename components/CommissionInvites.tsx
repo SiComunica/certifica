@@ -14,6 +14,7 @@ export default function CommissionInvites() {
     setLoading(true)
 
     try {
+      console.log('Invio invito a:', email)
       const response = await fetch('/api/commission/invite', {
         method: 'POST',
         headers: {
@@ -23,6 +24,7 @@ export default function CommissionInvites() {
       })
 
       const data = await response.json()
+      console.log('Risposta:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Errore nell\'invio dell\'invito')
@@ -32,8 +34,8 @@ export default function CommissionInvites() {
       setEmail('')
       loadInvites()
     } catch (error: any) {
+      console.error('Errore completo:', error)
       toast.error(error.message || 'Errore nell\'invio dell\'invito')
-      console.error('Errore:', error)
     } finally {
       setLoading(false)
     }
