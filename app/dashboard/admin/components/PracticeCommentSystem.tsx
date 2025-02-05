@@ -101,7 +101,14 @@ export function PracticeCommentSystem({ practiceId, userId, practiceTitle }: Pra
       }
 
       console.log('6. Notifica creata con successo:', notificationData)
-      toast.success('Notifica inviata con successo!')
+      await toast.promise(
+        Promise.resolve(),
+        {
+          loading: 'Invio notifica in corso...',
+          success: 'Notifica inviata con successo!',
+          error: 'Errore nell\'invio della notifica'
+        }
+      )
       setContent('')
 
     } catch (error: any) {

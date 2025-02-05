@@ -22,83 +22,70 @@ interface Notification {
 export default function Notifications() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
   const supabase = createClientComponentClient()
 
-  // Carica le notifiche quando il componente viene montato
   useEffect(() => {
-    console.log("1. Componente Notifications montato")
-    loadInitialNotifications()
-  }, [])
-
-  // Funzione per caricare le notifiche iniziali
-  const loadInitialNotifications = async () => {
-    try {
-      setIsLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        console.error('2. Utente non autenticato')
-        return
-      }
-
-      console.log('3. Caricamento notifiche per user:', user.id)
-      
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('4. Errore caricamento:', error)
-        throw error
-      }
-
-      console.log('5. Notifiche caricate:', data)
-      setNotifications(data || [])
-
-      // Setup della subscription real-time
-      setupRealtimeSubscription(user.id)
-
-    } catch (error) {
-      console.error('6. Errore:', error)
-      toast.error('Errore nel caricamento delle notifiche')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Setup della subscription real-time
-  const setupRealtimeSubscription = (userId: string) => {
-    console.log('7. Setup subscription per user:', userId)
+    console.log("DEBUG: Notifications component mounted")
     
-    const channel = supabase
-      .channel('notifications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('8. Nuova notifica ricevuta:', payload)
-          const newNotification = payload.new as Notification
-          setNotifications(prev => [newNotification, ...prev])
-          toast.success(`Nuova notifica: ${newNotification.title}`)
-        }
-      )
-      .subscribe((status) => {
-        console.log('9. Subscription status:', status)
-      })
+    const fetchNotifications = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log("DEBUG: Current user:", user?.id)
 
-    return () => {
-      console.log('10. Pulizia subscription')
-      supabase.removeChannel(channel)
+        if (!user) {
+          console.error("DEBUG: No user found")
+          return
+        }
+
+        // Fetch notifications
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error("DEBUG: Error fetching notifications:", error)
+          return
+        }
+
+        console.log("DEBUG: Fetched notifications:", data)
+        setNotifications(data || [])
+        setUnreadCount(data?.filter(n => !n.read).length || 0)
+
+        // Setup realtime subscription
+        const channel = supabase
+          .channel('notifications')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`
+            },
+            (payload) => {
+              console.log("DEBUG: Realtime notification received:", payload)
+              toast.success("Nuova notifica ricevuta!")
+              fetchNotifications() // Reload notifications
+            }
+          )
+          .subscribe((status) => {
+            console.log("DEBUG: Subscription status:", status)
+          })
+
+        return () => {
+          console.log("DEBUG: Cleaning up subscription")
+          supabase.removeChannel(channel)
+        }
+      } catch (error) {
+        console.error("DEBUG: Error in fetchNotifications:", error)
+      }
     }
-  }
+
+    fetchNotifications()
+  }, [])
 
   const markAsRead = async (id: string) => {
     try {
@@ -135,8 +122,6 @@ export default function Notifications() {
       toast.error(`Errore nell'aggiornamento delle notifiche: ${error.message}`)
     }
   }
-
-  const unreadCount = notifications.filter(n => !n.read).length
 
   const formatDate = (date: string) => {
     const d = new Date(date)
