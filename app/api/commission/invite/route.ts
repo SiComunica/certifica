@@ -39,12 +39,15 @@ export async function POST(request: Request) {
 
     if (inviteError) throw inviteError
 
-    // Invia l'email di invito usando Supabase Auth
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${siteUrl}/auth/commission-signup`,
-      data: {
-        role: 'admin',
-        invite_id: invite.id
+    // Usa signInWithOtp invece di inviteUserByEmail
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${siteUrl}/auth/commission-signup`,
+        data: {
+          role: 'admin',
+          invite_id: invite.id
+        }
       }
     })
 
