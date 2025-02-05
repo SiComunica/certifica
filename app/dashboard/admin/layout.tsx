@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { NotificationCenter } from "@/components/NotificationCenter"
 
 interface LayoutProps {
   children: React.ReactNode
@@ -35,8 +36,11 @@ export default function AdminLayout({ children }: LayoutProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow p-4">
+        <header className="bg-white shadow p-4 flex justify-between items-center">
           <h1 className="text-xl font-semibold">Pannello Amministrazione</h1>
+          <div className="flex items-center gap-4">
+            <NotificationCenter />
+          </div>
         </header>
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           {children}
