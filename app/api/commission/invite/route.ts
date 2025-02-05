@@ -1,61 +1,57 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { Resend } from 'resend'
-import { CommissionInviteEmail } from '@/components/email/commission-invite-template'
+import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
+    const { email } = await request.json()
     const supabase = createRouteHandlerClient({ cookies })
-    
-    // Verifica autenticazione
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
-    if (authError || !session) {
-      return Response.json({ error: 'Non autorizzato' }, { status: 401 })
+
+    // Verifica che chi fa la richiesta sia un admin
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user?.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Non autorizzato' },
+        { status: 401 }
+      )
     }
 
-    const { email } = await req.json()
-
-    // Genera token invito
-    const token = crypto.randomUUID()
-    
-    // Salva invito nel database
-    const { error: dbError } = await supabase
+    // Crea l'invito nel database
+    const { data: invite, error: inviteError } = await supabase
       .from('commission_invites')
-      .insert([
-        {
-          email,
-          token,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 giorni
-          invited_by: session.user.id
-        }
-      ])
-
-    if (dbError) {
-      throw dbError
-    }
-
-    // Costruisci URL invito
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/commission/join?token=${token}`
-
-    // Invia email
-    await resend.emails.send({
-      from: 'Certifica <noreply@certifica.local>',
-      to: [email],
-      subject: 'Invito Commissione Certifica',
-      react: CommissionInviteEmail({ 
-        inviteUrl,
-        recipientEmail: email
+      .insert({
+        email,
+        invited_by: user?.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 giorni
+        status: 'pending'
       })
+      .select()
+      .single()
+
+    if (inviteError) throw inviteError
+
+    // Invia l'email di invito usando Supabase Auth
+    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: {
+        role: 'member',
+        invite_id: invite.id
+      }
     })
 
-    return Response.json({ success: true })
+    if (error) throw error
+
+    return NextResponse.json({ success: true, data })
 
   } catch (error) {
     console.error('Errore invito:', error)
-    return Response.json(
-      { error: "Errore durante l'invio dell'invito" },
+    return NextResponse.json(
+      { error: 'Errore durante l\'invio dell\'invito' },
       { status: 500 }
     )
   }
