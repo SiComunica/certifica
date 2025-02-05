@@ -5,55 +5,36 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
-    console.log('Email ricevuta:', email)
-    
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Verifica che chi fa la richiesta sia un admin
-    const { data: { user } } = await supabase.auth.getUser()
-    console.log('User:', user)
+    // Prima creiamo l'utente con una password temporanea
+    const tempPassword = Math.random().toString(36).slice(-12)
+    const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { role: 'admin' },
+      role: 'authenticated'
+    })
 
-    // Crea l'invito nel database
-    const { data: invite, error: inviteError } = await supabase
-      .from('commission_invites')
-      .insert({
-        email,
-        invited_by: user?.id,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 giorni
-        status: 'pending'
-      })
-      .select()
-      .single()
+    if (userError) throw userError
 
-    if (inviteError) {
-      console.error('Errore creazione invito:', inviteError)
-      throw inviteError
-    }
-    console.log('Invito creato:', invite)
-
-    // Invia l'email
-    const { data, error } = await supabase.auth.signInWithOtp({
+    // Forziamo immediatamente un reset password
+    const { error: resetError } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
       email,
       options: {
-        emailRedirectTo: `${siteUrl}/auth/commission-signup`,
-        data: {
-          role: 'admin',
-          invite_id: invite.id
-        }
+        redirectTo: `${siteUrl}/auth/commission-signup`
       }
     })
 
-    if (error) {
-      console.error('Errore invio OTP:', error)
-      throw error
-    }
-    console.log('OTP inviato con successo:', data)
+    if (resetError) throw resetError
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: userData })
 
   } catch (error) {
-    console.error('Errore completo:', error)
+    console.error('Errore invito:', error)
     return NextResponse.json(
       { error: 'Errore durante l\'invio dell\'invito' },
       { status: 500 }
