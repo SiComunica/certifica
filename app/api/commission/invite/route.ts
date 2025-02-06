@@ -8,11 +8,13 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
-    console.log('Email da invitare:', email)
+    console.log('1. Email da invitare:', email)
+    console.log('2. API Key Resend:', process.env.RESEND_API_KEY ? 'Presente' : 'Mancante')
     
     const supabase = createRouteHandlerClient({ cookies })
 
     // Salva l'invito
+    console.log('3. Salvataggio invito...')
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
@@ -25,8 +27,10 @@ export async function POST(request: Request) {
       console.error('Errore salvataggio invito:', inviteError)
       throw inviteError
     }
+    console.log('4. Invito salvato con successo')
 
     // Invia email con Resend
+    console.log('5. Invio email con Resend...')
     const { data, error: emailError } = await resend.emails.send({
       from: 'Certifica <onboarding@resend.dev>',
       to: email,
@@ -44,8 +48,8 @@ export async function POST(request: Request) {
       console.error('Errore invio email:', emailError)
       throw emailError
     }
+    console.log('6. Email inviata con successo:', data)
 
-    console.log('Invito inviato con successo')
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
