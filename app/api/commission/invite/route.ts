@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // Prima salva l'invito
+    // Salva l'invito
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
@@ -23,9 +23,15 @@ export async function POST(request: Request) {
       throw inviteError
     }
 
-    // Poi invia l'email
-    const { data, error: emailError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
+    // Invia solo l'email con magic link
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
+        data: {
+          isCommissionInvite: true
+        }
+      }
     })
 
     if (emailError) {
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
       throw emailError
     }
 
-    console.log('Invito inviato con successo:', data)
+    console.log('Invito inviato con successo')
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
