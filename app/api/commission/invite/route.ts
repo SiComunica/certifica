@@ -9,7 +9,17 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // 1. Solo salvataggio in commission_invites
+    // 1. Invio email semplice
+    const { error: emailError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
+    })
+
+    if (emailError) {
+      console.error('Errore invio email:', emailError)
+      throw emailError
+    }
+
+    // 2. Se l'email è stata inviata, salva l'invito
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
@@ -18,25 +28,19 @@ export async function POST(request: Request) {
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
 
-    if (inviteError) throw inviteError
+    if (inviteError) {
+      console.error('Errore salvataggio invito:', inviteError)
+      throw inviteError
+    }
 
-    // 2. Invio email con link diretto
-    const { error: emailError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/commission-signup?email=${encodeURIComponent(email)}`,
-        data: {
-          isCommissionInvite: true
-        }
-      }
-    })
-
-    if (emailError) throw emailError
-
+    console.log('Invito inviato con successo')
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
-    console.error('Errore:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Errore completo:', error)
+    return NextResponse.json(
+      { error: error.message || 'Errore durante l\'invio dell\'invito' },
+      { status: 500 }
+    )
   }
 } 
