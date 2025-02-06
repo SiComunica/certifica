@@ -24,17 +24,8 @@ export async function POST(request: Request) {
 
     if (saveError) throw saveError
 
-    // Invia email semplice con OTP
-    const { error: emailError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `https://certifica-sjmx.vercel.app/auth/commission-register?code=${code}`
-      }
-    })
-
-    if (emailError) throw emailError
-
-    return NextResponse.json({ success: true })
+    // Restituisci il codice invece di inviare email
+    return NextResponse.json({ success: true, code })
 
   } catch (error: any) {
     console.error('Errore:', error)
