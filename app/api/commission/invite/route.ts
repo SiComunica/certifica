@@ -5,11 +5,14 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
+    console.log('Email ricevuta:', email)
+    
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
+    console.log('Invio OTP a:', email)
     // Invia OTP
-    const { error: signInError } = await supabase.auth.signInWithOtp({
+    const { data, error: signInError } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${siteUrl}/auth/callback?next=/auth/commission-signup`,
@@ -19,7 +22,11 @@ export async function POST(request: Request) {
       }
     })
 
-    if (signInError) throw signInError
+    if (signInError) {
+      console.error('Errore invio OTP:', signInError)
+      throw signInError
+    }
+    console.log('OTP inviato con successo:', data)
 
     // Salva l'invito
     const { error: inviteError } = await supabase
@@ -30,12 +37,16 @@ export async function POST(request: Request) {
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
 
-    if (inviteError) throw inviteError
+    if (inviteError) {
+      console.error('Errore salvataggio invito:', inviteError)
+      throw inviteError
+    }
+    console.log('Invito salvato nel database')
 
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
-    console.error('Errore invito:', error)
+    console.error('Errore completo:', error)
     return NextResponse.json(
       { error: error.message || 'Errore durante l\'invio dell\'invito' },
       { status: 500 }
