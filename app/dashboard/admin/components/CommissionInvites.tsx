@@ -12,6 +12,7 @@ export default function CommissionInvites() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [invites, setInvites] = useState<any[]>([])
+  const [inviteCode, setInviteCode] = useState("")
   const supabase = createClientComponentClient()
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -19,7 +20,7 @@ export default function CommissionInvites() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/commission/invite', {
+      const response = await fetch('/api/commission/invite-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -27,15 +28,17 @@ export default function CommissionInvites() {
         body: JSON.stringify({ email }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Errore nell\'invio dell\'invito')
+        throw new Error(data.error || 'Errore nell\'invio dell\'invito')
       }
 
-      toast.success('Invito inviato con successo')
-      setEmail('')
-      loadInvites() // Ricarica la lista degli inviti
-    } catch (error) {
-      toast.error('Errore nell\'invio dell\'invito')
+      setInviteCode(data.code)
+      toast.success('Codice invito generato')
+      loadInvites()
+    } catch (error: any) {
+      toast.error(error.message || 'Errore nell\'invio dell\'invito')
       console.error('Errore:', error)
     } finally {
       setLoading(false)
@@ -45,14 +48,14 @@ export default function CommissionInvites() {
   const loadInvites = async () => {
     try {
       const { data, error } = await supabase
-        .from('commission_invites')
+        .from('commission_invite_codes')
         .select(`
           id,
           email,
+          code,
           created_at,
           expires_at,
-          accepted_at,
-          invited_by
+          used
         `)
         .order('created_at', { ascending: false })
 
@@ -64,7 +67,6 @@ export default function CommissionInvites() {
     }
   }
 
-  // Corretto useState in useEffect
   useEffect(() => {
     loadInvites()
   }, [])
@@ -89,10 +91,27 @@ export default function CommissionInvites() {
                   required
                 />
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Invio...' : 'Invia Invito'}
+                  {loading ? 'Generazione...' : 'Genera Codice'}
                 </Button>
               </div>
             </div>
+
+            {inviteCode && (
+              <div className="mt-4 p-4 bg-blue-50 rounded">
+                <p className="font-bold mb-2">Codice Invito Generato:</p>
+                <p className="text-2xl text-blue-600 font-mono">{inviteCode}</p>
+                <p className="mt-2 text-sm">
+                  Link registrazione:<br/>
+                  <a 
+                    href="/auth/commission-register" 
+                    className="text-blue-600 hover:underline"
+                    target="_blank"
+                  >
+                    /auth/commission-register
+                  </a>
+                </p>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
@@ -113,28 +132,20 @@ export default function CommissionInvites() {
                       <div>
                         <p className="font-medium">{invite.email}</p>
                         <p className="text-sm text-gray-500">
+                          Codice: {invite.code}
+                        </p>
+                        <p className="text-sm text-gray-500">
                           Inviato il: {new Date(invite.created_at).toLocaleDateString()}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Stato: {invite.accepted_at ? 'Accettato' : 'In attesa'}
+                          Stato: {invite.used ? 'Utilizzato' : 'Non utilizzato'}
                         </p>
-                        {!invite.accepted_at && (
+                        {!invite.used && (
                           <p className="text-sm text-gray-500">
                             Scade il: {new Date(invite.expires_at).toLocaleDateString()}
                           </p>
                         )}
                       </div>
-                      {!invite.accepted_at && (
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            // Implementare il reinvio dell'invito
-                            toast.info('Funzionalità in sviluppo')
-                          }}
-                        >
-                          Reinvia
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
