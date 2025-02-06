@@ -9,12 +9,27 @@ export async function POST(request: Request) {
   try {
     const { email } = await request.json()
     console.log('1. Email da invitare:', email)
-    console.log('2. API Key Resend Commission:', process.env.RESEND_COMMISSION_KEY ? 'Presente' : 'Mancante')
+    console.log('2. API Key Resend Commission:', process.env.RESEND_COMMISSION_KEY?.substring(0, 10) + '...')
     
     const supabase = createRouteHandlerClient({ cookies })
 
+    // Test Resend prima del salvataggio
+    console.log('3. Test connessione Resend...')
+    try {
+      const testEmail = await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: email,
+        subject: 'Test Invito Commissione',
+        html: 'Test email invito commissione'
+      })
+      console.log('Test email response:', testEmail)
+    } catch (testError) {
+      console.error('Errore test Resend:', testError)
+      throw testError
+    }
+
     // Salva l'invito
-    console.log('3. Salvataggio invito...')
+    console.log('4. Salvataggio invito...')
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
@@ -27,12 +42,12 @@ export async function POST(request: Request) {
       console.error('Errore salvataggio invito:', inviteError)
       throw inviteError
     }
-    console.log('4. Invito salvato con successo')
+    console.log('5. Invito salvato con successo')
 
-    // Invia email con Resend
-    console.log('5. Invio email con Resend...')
+    // Invia email completa
+    console.log('6. Invio email completa...')
     const { data, error: emailError } = await resend.emails.send({
-      from: 'Certifica Commissione <onboarding@resend.dev>',
+      from: 'onboarding@resend.dev',
       to: email,
       subject: 'Invito a Certifica - Registrazione Commissione',
       html: `
@@ -48,7 +63,7 @@ export async function POST(request: Request) {
       console.error('Errore invio email:', emailError)
       throw emailError
     }
-    console.log('6. Email inviata con successo:', data)
+    console.log('7. Email inviata con successo:', data)
 
     return NextResponse.json({ success: true })
 
