@@ -8,17 +8,16 @@ export async function POST(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Invia l'invito con il link corretto
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${siteUrl}/auth/callback?next=/auth/commission-signup`,
-      data: { 
-        role: 'admin'
-      }
+    // Crea l'utente direttamente
+    const { data: user, error: userError } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: false,
+      user_metadata: { role: 'admin' }
     })
 
-    if (error) throw error
+    if (userError) throw userError
 
-    // Salva l'invito nel database
+    // Salva l'invito
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
