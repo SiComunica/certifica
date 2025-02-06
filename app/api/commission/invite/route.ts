@@ -8,29 +8,18 @@ export async function POST(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Genera una password temporanea casuale
-    const tempPassword = Math.random().toString(36).slice(-12)
-
-    // Crea l'utente
-    const { data: user, error: userError } = await supabase.auth.admin.createUser({
+    // Invia direttamente l'OTP
+    const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
-      email_confirm: false,
-      user_metadata: { role: 'admin' }
-    })
-
-    if (userError) throw userError
-
-    // Forza l'invio dell'email di verifica
-    const { error: emailError } = await supabase.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      password: tempPassword,
       options: {
-        redirectTo: `${siteUrl}/auth/commission-signup`
+        emailRedirectTo: `${siteUrl}/auth/commission-signup`,
+        data: {
+          role: 'admin'
+        }
       }
     })
 
-    if (emailError) throw emailError
+    if (signInError) throw signInError
 
     // Salva l'invito
     const { error: inviteError } = await supabase
