@@ -9,21 +9,6 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // Crea un link di registrazione diretto
-    const { data, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      password: Math.random().toString(36).slice(-12),
-      options: {
-        redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
-      }
-    })
-
-    if (linkError) {
-      console.error('Errore generazione link:', linkError)
-      throw linkError
-    }
-
     // Salva l'invito
     const { error: inviteError } = await supabase
       .from('commission_invites')
@@ -38,11 +23,11 @@ export async function POST(request: Request) {
       throw inviteError
     }
 
-    // Invia solo l'email con magic link
+    // Invia solo l'email con OTP
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
+        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/callback?next=/auth/commission-signup',
         data: {
           isCommissionInvite: true
         }
