@@ -9,6 +9,30 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
+    // Prima creiamo l'utente con email già verificata
+    const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true,  // Email già verificata
+      user_metadata: {
+        role: 'admin'
+      }
+    })
+
+    if (userError) {
+      console.error('Errore creazione utente:', userError)
+      throw userError
+    }
+
+    // Poi inviamo l'email di reset password
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
+    })
+
+    if (resetError) {
+      console.error('Errore invio reset password:', resetError)
+      throw resetError
+    }
+
     // Salva l'invito
     const { error: inviteError } = await supabase
       .from('commission_invites')
@@ -21,23 +45,6 @@ export async function POST(request: Request) {
     if (inviteError) {
       console.error('Errore salvataggio invito:', inviteError)
       throw inviteError
-    }
-
-    // Invia email con OTP
-    const { error: emailError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
-        data: {
-          isCommissionInvite: true,
-          redirectTo: '/auth/commission-signup'
-        }
-      }
-    })
-
-    if (emailError) {
-      console.error('Errore invio email:', emailError)
-      throw emailError
     }
 
     console.log('Invito inviato con successo')
