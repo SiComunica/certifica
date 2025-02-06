@@ -20,11 +20,11 @@ export async function POST(request: Request) {
 
     if (inviteError) throw inviteError
 
-    // 2. Solo invio email con link diretto alla pagina di registrazione
+    // 2. Invio email con link diretto
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/commission-signup?email=${encodeURIComponent(email)}`,
         data: {
           isCommissionInvite: true
         }
