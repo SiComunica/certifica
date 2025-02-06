@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     if (saveError) throw saveError
 
-    // Restituisci il codice invece di inviare email
+    // Restituisci il codice
     return NextResponse.json({ success: true, code })
 
   } catch (error: any) {
