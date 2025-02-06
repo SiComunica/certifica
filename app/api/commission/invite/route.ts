@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 
 export async function POST(request: Request) {
   try {
@@ -9,21 +10,17 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // 1. Invio email semplice
-    const { error: emailError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
-    })
+    // 1. Crea un token semplice basato sull'email
+    const token = createHash('sha256')
+      .update(email + Date.now().toString())
+      .digest('hex')
 
-    if (emailError) {
-      console.error('Errore invio email:', emailError)
-      throw emailError
-    }
-
-    // 2. Se l'email è stata inviata, salva l'invito
+    // 2. Salva l'invito con il token
     const { error: inviteError } = await supabase
       .from('commission_invites')
       .insert({
         email: email.trim(),
+        token: token,
         status: 'pending',
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
@@ -31,6 +28,19 @@ export async function POST(request: Request) {
     if (inviteError) {
       console.error('Errore salvataggio invito:', inviteError)
       throw inviteError
+    }
+
+    // 3. Invia email con link e token
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `https://certifica-sjmx.vercel.app/auth/commission-signup?token=${token}`
+      }
+    })
+
+    if (emailError) {
+      console.error('Errore invio email:', emailError)
+      throw emailError
     }
 
     console.log('Invito inviato con successo')
