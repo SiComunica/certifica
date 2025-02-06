@@ -42,6 +42,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(`/auth/commission-signup?token=${token}`, req.url))
   }
 
+  // Se l'utente sta accedendo alla pagina di login e ha un session.user.user_metadata.redirectTo
+  if (req.nextUrl.pathname === '/auth/login' && session?.user?.user_metadata?.redirectTo) {
+    return NextResponse.redirect(new URL(session.user.user_metadata.redirectTo, req.url))
+  }
+
   return res
 }
 

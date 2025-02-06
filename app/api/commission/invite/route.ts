@@ -23,13 +23,14 @@ export async function POST(request: Request) {
       throw inviteError
     }
 
-    // Invia solo l'email con OTP
+    // Invia email con OTP
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/callback?next=/auth/commission-signup',
+        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
         data: {
-          isCommissionInvite: true
+          isCommissionInvite: true,
+          redirectTo: '/auth/commission-signup'
         }
       }
     })
