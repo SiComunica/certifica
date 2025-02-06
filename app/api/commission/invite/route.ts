@@ -8,30 +8,18 @@ export async function POST(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Prima creiamo l'utente con una password temporanea
-    const tempPassword = Math.random().toString(36).slice(-12)
-    
-    const { data: user, error: userError } = await supabase.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true, // Confermiamo subito l'email
-      user_metadata: { 
-        role: 'admin',
-        needsPasswordChange: true
+    // Usa inviteUserByEmail che ha un template dedicato
+    const { data, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${siteUrl}/auth/commission-signup`,
+      data: { 
+        role: 'admin'
       }
     })
 
-    if (userError) throw userError
+    if (inviteError) throw inviteError
 
-    // Inviamo subito il reset password
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/commission-signup`
-    })
-
-    if (resetError) throw resetError
-
-    // Salviamo l'invito
-    const { error: inviteError } = await supabase
+    // Salva l'invito
+    const { error: dbError } = await supabase
       .from('commission_invites')
       .insert({
         email: email.trim(),
@@ -39,12 +27,12 @@ export async function POST(request: Request) {
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
 
-    if (inviteError) throw inviteError
+    if (dbError) throw dbError
 
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
-    console.error('Errore completo:', error)
+    console.error('Errore invito:', error)
     return NextResponse.json(
       { error: error.message || 'Errore durante l\'invio dell\'invito' },
       { status: 500 }
