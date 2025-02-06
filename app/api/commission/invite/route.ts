@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // 1. Crea un token semplice basato sull'email
+    // 1. Crea un token semplice
     const token = createHash('sha256')
       .update(email + Date.now().toString())
       .digest('hex')
@@ -30,11 +30,11 @@ export async function POST(request: Request) {
       throw inviteError
     }
 
-    // 3. Invia email con link e token
+    // 3. Invia email passando prima per il callback
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `https://certifica-sjmx.vercel.app/auth/commission-signup?token=${token}`
+        emailRedirectTo: `https://certifica-sjmx.vercel.app/auth/callback?next=/auth/commission-signup&token=${token}`
       }
     })
 

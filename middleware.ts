@@ -47,6 +47,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(session.user.user_metadata.redirectTo, req.url))
   }
 
+  // Gestisci il reindirizzamento dopo il callback
+  if (req.nextUrl.pathname === '/auth/callback') {
+    const next = req.nextUrl.searchParams.get('next')
+    if (next) {
+      return NextResponse.redirect(new URL(next, req.url))
+    }
+  }
+
   return res
 }
 
