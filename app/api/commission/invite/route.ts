@@ -8,11 +8,11 @@ export async function POST(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Invia direttamente l'OTP
+    // Invia OTP
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${siteUrl}/auth/commission-signup`,
+        emailRedirectTo: `${siteUrl}/auth/callback?next=/auth/commission-signup`,
         data: {
           role: 'admin'
         }
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       .insert({
         email: email.trim(),
         status: 'pending',
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
 
     if (inviteError) throw inviteError
