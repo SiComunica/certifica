@@ -8,26 +8,34 @@ export async function POST(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
     const siteUrl = 'https://certifica-sjmx.vercel.app'
 
-    // Usa inviteUserByEmail che ha un template dedicato
-    const { data, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${siteUrl}/auth/commission-signup`,
-      data: { 
-        role: 'admin'
-      }
-    })
+    // Crea un token personalizzato
+    const token = Math.random().toString(36).substring(2)
 
-    if (inviteError) throw inviteError
-
-    // Salva l'invito
+    // Salva l'invito con il token
     const { error: dbError } = await supabase
       .from('commission_invites')
       .insert({
         email: email.trim(),
         status: 'pending',
+        token: token,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
 
     if (dbError) throw dbError
+
+    // Invia magic link con token
+    const { error: signInError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${siteUrl}/auth/callback?commission=true&token=${token}`,
+        data: {
+          type: 'commission',
+          token: token
+        }
+      }
+    })
+
+    if (signInError) throw signInError
 
     return NextResponse.json({ success: true })
 

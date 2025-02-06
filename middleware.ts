@@ -36,6 +36,12 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Se c'è un parametro commission, reindirizza alla pagina commissione
+  if (req.nextUrl.searchParams.has('commission')) {
+    const token = req.nextUrl.searchParams.get('token')
+    return NextResponse.redirect(new URL(`/auth/commission-signup?token=${token}`, req.url))
+  }
+
   return res
 }
 
@@ -49,6 +55,7 @@ export const config = {
      * - public (public files)
      */
     '/((?!_next/static|_next/image|favicon.ico|public|images|api).*)',
-    '/auth/commission-signup'
+    '/auth/commission-signup',
+    '/auth/callback'
   ],
 }
