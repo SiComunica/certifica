@@ -9,13 +9,12 @@ export async function POST(request: Request) {
     
     const supabase = createRouteHandlerClient({ cookies })
 
-    // Solo invio email con template personalizzato
+    // Usa il metodo corretto per il magic link
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        data: {
-          isCommissionInvite: true
-        }
+        shouldCreateUser: true,
+        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/callback'
       }
     })
 
