@@ -7,13 +7,15 @@ export async function POST(request: Request) {
     const { email } = await request.json()
     const supabase = createRouteHandlerClient({ cookies })
 
-    // Invia solo l'email con il link diretto
+    // Usa esplicitamente il magic link
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
       options: {
         data: { 
           role: 'admin'
-        }
+        },
+        shouldCreateUser: true,
+        emailRedirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
       }
     })
 
