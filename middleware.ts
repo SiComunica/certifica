@@ -47,6 +47,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(session.user.user_metadata.redirectTo, req.url))
   }
 
+  // Intercetta tutti i parametri dall'URL
+  const requestUrl = new URL(req.url)
+  const code = requestUrl.searchParams.get('code')
+  const accessToken = requestUrl.hash?.split('access_token=')[1]?.split('&')[0]
+
+  // Se siamo nella pagina di login e c'è un codice o token
+  if (req.nextUrl.pathname === '/auth/login' && (code || accessToken)) {
+    // Gestisci l'autenticazione
+    if (code) {
+      await supabase.auth.exchangeCodeForSession(code)
+    }
+    
+    // Reindirizza alla pagina di registrazione commissione
+    return NextResponse.redirect(new URL('/auth/commission-signup', req.url))
+  }
+
   // Gestisci il reindirizzamento dopo il callback
   if (req.nextUrl.pathname === '/auth/callback') {
     const next = req.nextUrl.searchParams.get('next')
