@@ -3,13 +3,13 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_COMMISSION_KEY)
 
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
     console.log('1. Email da invitare:', email)
-    console.log('2. API Key Resend:', process.env.RESEND_API_KEY ? 'Presente' : 'Mancante')
+    console.log('2. API Key Resend Commission:', process.env.RESEND_COMMISSION_KEY ? 'Presente' : 'Mancante')
     
     const supabase = createRouteHandlerClient({ cookies })
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     // Invia email con Resend
     console.log('5. Invio email con Resend...')
     const { data, error: emailError } = await resend.emails.send({
-      from: 'Certifica <onboarding@resend.dev>',
+      from: 'Certifica Commissione <onboarding@resend.dev>',
       to: email,
       subject: 'Invito a Certifica - Registrazione Commissione',
       html: `
