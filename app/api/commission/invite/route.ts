@@ -20,9 +20,25 @@ export async function POST(request: Request) {
 
     if (inviteError) throw inviteError
 
-    // 2. Invia invito semplice
+    // 2. Crea un link di signup diretto con password temporanea
+    const tempPassword = Math.random().toString(36).slice(-12)
+    const { data, error: signupError } = await supabase.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password: tempPassword,  // Password temporanea richiesta
+      options: {
+        redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup',
+        data: {
+          role: 'admin'
+        }
+      }
+    })
+
+    if (signupError) throw signupError
+
+    // 3. Usa il link generato nel template
     const { error: emailError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://certifica-sjmx.vercel.app/auth/commission-signup'
+      redirectTo: data.properties.action_link
     })
 
     if (emailError) throw emailError
