@@ -71,20 +71,15 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Se l'URL contiene un token di accesso (dal magic link)
+  if (req.nextUrl.hash && req.nextUrl.hash.includes('access_token')) {
+    // Forza il redirect alla pagina di registrazione commissione
+    return NextResponse.redirect(new URL('/auth/commission-signup', req.url))
+  }
+
   return res
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public|images|api).*)',
-    '/auth/commission-signup',
-    '/auth/callback'
-  ],
+  matcher: ['/auth/login', '/auth/callback', '/auth/commission-signup']
 }
