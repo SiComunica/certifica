@@ -1,6 +1,7 @@
 import CommissionInvites from "../components/CommissionInvites"
 
 export default function MembersPage() {
+  console.log("Rendering MembersPage")
   return (
     <div>
       <div className="mb-6">
@@ -8,6 +9,10 @@ export default function MembersPage() {
       </div>
       
       <CommissionInvites />
+      
+      <div className="mt-4 text-red-500">
+        Test Rendering
+      </div>
     </div>
   )
 } 
