@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import CommissionInvites from "./CommissionInvites"
 
 export default function CommissionManagement() {
   const [email, setEmail] = useState("")
@@ -72,6 +73,7 @@ export default function CommissionManagement() {
           </form>
         </CardContent>
       </Card>
+      <CommissionInvites />
     </div>
   )
 } 
