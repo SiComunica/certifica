@@ -66,10 +66,10 @@ export default function LoginPage() {
         .single()
 
       // Reindirizza in base al ruolo
-      if (profile?.role === 'admin') {
-        router.push('/dashboard/admin') // dashboard commissione
+      if (profile?.role === 'admin' || profile?.role === 'commission') {
+        router.push('/dashboard/admin')
       } else {
-        router.push('/dashboard/user') // dashboard aziende
+        router.push('/dashboard/user')
       }
 
     } catch (error) {
